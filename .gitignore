@@ -28,6 +28,8 @@ stats/*
 
 */obj/*
 
+inc/root_directory.h
+
 build/*
 !build/Makefile
 !build/*.make
