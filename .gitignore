@@ -1,0 +1,39 @@
+# Object files
+*.o
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.pyc
+*.app
+
+#ignore ~ files
+*~
+*.kate-swp
+*.swp
+CMakeFiles/*
+CMakeCache.txt
+cmake_install.cmake
+stats/*
+
+*/obj/*
+
+build/*
+!build/Makefile
+!build/*.make
+
+*.zip
+*.tbz2
+*.tgz
+*.tar
+
