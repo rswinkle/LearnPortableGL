@@ -9,17 +9,25 @@ ifndef verbose
 endif
 
 ifeq ($(config),debug)
+  1.1.1.hello_window_config = debug
   1.7.4.camera_class_config = debug
 endif
 ifeq ($(config),release)
+  1.1.1.hello_window_config = release
   1.7.4.camera_class_config = release
 endif
 
-PROJECTS := 1.7.4.camera_class
+PROJECTS := 1.1.1.hello_window 1.7.4.camera_class
 
 .PHONY: all clean help $(PROJECTS) 
 
 all: $(PROJECTS)
+
+1.1.1.hello_window:
+ifneq (,$(1.1.1.hello_window_config))
+	@echo "==== Building 1.1.1.hello_window ($(1.1.1.hello_window_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 1.1.1.hello_window.make config=$(1.1.1.hello_window_config)
+endif
 
 1.7.4.camera_class:
 ifneq (,$(1.7.4.camera_class_config))
@@ -28,6 +36,7 @@ ifneq (,$(1.7.4.camera_class_config))
 endif
 
 clean:
+	@${MAKE} --no-print-directory -C . -f 1.1.1.hello_window.make clean
 	@${MAKE} --no-print-directory -C . -f 1.7.4.camera_class.make clean
 
 help:
@@ -40,6 +49,7 @@ help:
 	@echo "TARGETS:"
 	@echo "   all (default)"
 	@echo "   clean"
+	@echo "   1.1.1.hello_window"
 	@echo "   1.7.4.camera_class"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"

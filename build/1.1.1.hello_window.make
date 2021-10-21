@@ -13,8 +13,8 @@ endif
 ifeq ($(config),debug)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/1.7.4.camera_class
-  OBJDIR = obj/Debug/1.7.4.camera_class
+  TARGET = $(TARGETDIR)/1.1.1.hello_window
+  OBJDIR = obj/Debug/1.1.1.hello_window
   DEFINES += -DDEBUG
   INCLUDES += -I../inc
   FORCE_INCLUDE +=
@@ -40,8 +40,8 @@ endif
 ifeq ($(config),release)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/1.7.4.camera_class
-  OBJDIR = obj/Release/1.7.4.camera_class
+  TARGET = $(TARGETDIR)/1.1.1.hello_window
+  OBJDIR = obj/Release/1.1.1.hello_window
   DEFINES += -DNDEBUG
   INCLUDES += -I../inc
   FORCE_INCLUDE +=
@@ -65,7 +65,7 @@ all: prebuild prelink $(TARGET)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/camera_class.o \
+	$(OBJDIR)/hello_window.o \
 
 RESOURCES := \
 
@@ -77,7 +77,7 @@ ifeq (.exe,$(findstring .exe,$(ComSpec)))
 endif
 
 $(TARGET): $(GCH) ${CUSTOMFILES} $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
-	@echo Linking 1.7.4.camera_class
+	@echo Linking 1.1.1.hello_window
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
 
@@ -100,7 +100,7 @@ else
 endif
 
 clean:
-	@echo Cleaning 1.7.4.camera_class
+	@echo Cleaning 1.1.1.hello_window
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
 	$(SILENT) rm -rf $(OBJDIR)
@@ -124,7 +124,7 @@ else
 $(OBJECTS): | $(OBJDIR)
 endif
 
-$(OBJDIR)/camera_class.o: ../src/1.getting_started/camera_class.cpp
+$(OBJDIR)/hello_window.o: ../src/1.getting_started/hello_window.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
