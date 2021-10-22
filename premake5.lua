@@ -1,8 +1,8 @@
 
 workspace "LearnPortableGL"
 	configurations { "Debug", "Release" }
-	location "build"
-	targetdir "build"
+	location "bin"
+	targetdir "bin"
 
 	language "C++"
 	links { "SDL2" }

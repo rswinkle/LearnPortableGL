@@ -30,9 +30,9 @@ stats/*
 
 inc/root_directory.h
 
-build/*
-!build/Makefile
-!build/*.make
+bin/*
+!bin/Makefile
+!bin/*.make
 
 *.zip
 *.tbz2
