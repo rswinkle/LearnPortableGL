@@ -36,17 +36,14 @@ void camera_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
 // settings
-const unsigned int SCR_WIDTH = 640;
-const unsigned int SCR_HEIGHT = 480;
+unsigned int scr_width = 640;
+unsigned int scr_height = 480;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
 
 // timing
-float deltaTime = 0.0f;	// time between current frame and last frame
+float deltaTime = 0.0f;   // time between current frame and last frame
 float lastFrame = 0.0f;
 
 SDL_Window* window;
@@ -244,7 +241,7 @@ int main()
 		glUseProgram(ourShader);
 
 		// pass projection matrix to shader (note that in this case it could change every frame)
-		the_uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+		the_uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
 
 		// camera/view transformation
 		the_uniforms.view = camera.GetViewMatrix();
@@ -264,7 +261,7 @@ int main()
 
 		// SDL2: blit texture (ie latest rendered frame) to screen
 		// -------------------------------------------------------------------------------
-		SDL_UpdateTexture(tex, NULL, bbufpix, SCR_WIDTH * sizeof(u32));
+		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(u32));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
 		SDL_RenderPresent(ren);
 	}
@@ -318,26 +315,19 @@ bool handle_events()
 
 			break; //sdl_keydown
 
-		/*
 		case SDL_WINDOWEVENT:
 			switch (event.window.event) {
 			case SDL_WINDOWEVENT_RESIZED:
-				printf("window size %d x %d\n", event.window.data1, event.window.data2);
-				width = event.window.data1;
-				height = event.window.data2;
-				mousex = width/2;
-				mousey = height/2;
+				scr_width = event.window.data1;
+				scr_height = event.window.data2;
 
-				remake_projection = true;
-
-			pglResizeFramebuffer(width, height);
-				glViewport(0, 0, width, height);
+				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
+				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
-				tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+				tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 				break;
 			}
 			break;
-			*/
 
 		case SDL_MOUSEMOTION:
 		{
@@ -392,7 +382,7 @@ void setup_context()
 		exit(0);
 	}
 
-	window = SDL_CreateWindow("camera_class", 100, 100, SCR_WIDTH, SCR_HEIGHT, SDL_WINDOW_SHOWN);
+	window = SDL_CreateWindow("camera_class", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!window) {
 		std::cerr << "Failed to create window\n";
 		SDL_Quit();
@@ -401,10 +391,10 @@ void setup_context()
 
 	// Create Software Renderer and texture
 	ren = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCR_WIDTH, SCR_HEIGHT);
+	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 	// Initialize and set PGL context
-	if (!init_glContext(&the_Context, &bbufpix, SCR_WIDTH, SCR_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)) {
+	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)) {
 		puts("Failed to initialize glContext");
 		exit(0);
 	}

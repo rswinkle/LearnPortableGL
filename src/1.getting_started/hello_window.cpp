@@ -103,11 +103,7 @@ bool handle_events()
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;
 
-				// TODO change pglResizeFramebuffer to take u32** back
-				// or return u32*.  User shouldn't have to reach in and
-				// access back_buffer.buf directly
-				pglResizeFramebuffer(scr_width, scr_height);
-				bbufpix = (u32*)the_Context.back_buffer.buf;
+				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
 
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
