@@ -11,6 +11,10 @@ project "1.2.1.hello_triangle"
 	kind "ConsoleApp"
 	files "hello_triangle.cpp"
 
+project "1.2.2.hello_triangle_indexed"
+	kind "ConsoleApp"
+	files "hello_triangle_indexed.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
