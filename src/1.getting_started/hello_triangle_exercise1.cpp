@@ -41,7 +41,7 @@ int main()
 		return 0;
 	}
 
-	window = SDL_CreateWindow("camera_class", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	window = SDL_CreateWindow("hello_triangle_exercise1", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!window) {
 		std::cerr << "Failed to create window\n";
 		SDL_Quit();
