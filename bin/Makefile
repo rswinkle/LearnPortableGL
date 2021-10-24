@@ -13,6 +13,7 @@ ifeq ($(config),debug)
   1.1.2.hello_window_clear_config = debug
   1.2.1.hello_triangle_config = debug
   1.2.2.hello_triangle_indexed_config = debug
+  1.2.3.hello_triangle_exercise1_config = debug
   1.7.4.camera_class_config = debug
 endif
 ifeq ($(config),release)
@@ -20,10 +21,11 @@ ifeq ($(config),release)
   1.1.2.hello_window_clear_config = release
   1.2.1.hello_triangle_config = release
   1.2.2.hello_triangle_indexed_config = release
+  1.2.3.hello_triangle_exercise1_config = release
   1.7.4.camera_class_config = release
 endif
 
-PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.7.4.camera_class
+PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.7.4.camera_class
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -53,6 +55,12 @@ ifneq (,$(1.2.2.hello_triangle_indexed_config))
 	@${MAKE} --no-print-directory -C . -f 1.2.2.hello_triangle_indexed.make config=$(1.2.2.hello_triangle_indexed_config)
 endif
 
+1.2.3.hello_triangle_exercise1:
+ifneq (,$(1.2.3.hello_triangle_exercise1_config))
+	@echo "==== Building 1.2.3.hello_triangle_exercise1 ($(1.2.3.hello_triangle_exercise1_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 1.2.3.hello_triangle_exercise1.make config=$(1.2.3.hello_triangle_exercise1_config)
+endif
+
 1.7.4.camera_class:
 ifneq (,$(1.7.4.camera_class_config))
 	@echo "==== Building 1.7.4.camera_class ($(1.7.4.camera_class_config)) ===="
@@ -64,6 +72,7 @@ clean:
 	@${MAKE} --no-print-directory -C . -f 1.1.2.hello_window_clear.make clean
 	@${MAKE} --no-print-directory -C . -f 1.2.1.hello_triangle.make clean
 	@${MAKE} --no-print-directory -C . -f 1.2.2.hello_triangle_indexed.make clean
+	@${MAKE} --no-print-directory -C . -f 1.2.3.hello_triangle_exercise1.make clean
 	@${MAKE} --no-print-directory -C . -f 1.7.4.camera_class.make clean
 
 help:
@@ -80,6 +89,7 @@ help:
 	@echo "   1.1.2.hello_window_clear"
 	@echo "   1.2.1.hello_triangle"
 	@echo "   1.2.2.hello_triangle_indexed"
+	@echo "   1.2.3.hello_triangle_exercise1"
 	@echo "   1.7.4.camera_class"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"
