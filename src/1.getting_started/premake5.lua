@@ -27,6 +27,10 @@ project "1.2.5.hello_triangle_exercise3"
 	kind "ConsoleApp"
 	files "hello_triangle_exercise3.cpp"
 
+project "1.3.1.shaders_uniform"
+	kind "ConsoleApp"
+	files "shaders_uniform.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
