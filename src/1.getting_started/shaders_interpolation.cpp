@@ -23,20 +23,18 @@ u32* bbufpix;
 
 glContext the_Context;
 
-struct My_Uniforms
-{
-	vec4 ourColor;
-};
 
 // using PGL's internal vector types and functions in these shaders
-void basic_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void interpolation_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
+	((vec4*)vs_output)[0] = ((vec4*)vertex_attribs)[1];
+
 	builtins->gl_Position = ((vec4*)vertex_attribs)[0];
 }
-void uniform_color_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
+void interpolation_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
-	My_Uniforms* u = (My_Uniforms*)uniforms;
-	builtins->gl_FragColor = u->ourColor;
+	// several ways to do this.
+	builtins->gl_FragColor = make_vec4(fs_input[0], fs_input[1], fs_input[2], 1.0f);
 }
 
 int main()
@@ -44,25 +42,21 @@ int main()
 	// Might as well make main a little cleaner
 	setup_context();
 
-	// build our shader program (and set uniform pointer)
+	// build our shader program
 	// ------------------------
-	unsigned int shaderProgram = pglCreateProgram(basic_vs, uniform_color_fs, 0, NULL, GL_FALSE);
-
-	// It's a good idea with PGL to set the uniform immediately if you use them
-	// which requires setting the shader to active (like binding a buffer)
-	//
-	// Once set, it never needs to be modified again, you can change the contents
-	// of the structure, ie update the uniforms as much as you like
-	glUseProgram(shaderProgram);
-	My_Uniforms uniforms;
-	pglSetUniform(&uniforms);
+	
+	// The array controls the interpolation of the attributes passed between the
+	// vertex and fragment shaders on an element basis, ie you need 3 for a vec3
+	GLenum smooth[3] = { SMOOTH, SMOOTH, SMOOTH };
+	unsigned int shaderProgram = pglCreateProgram(interpolation_vs, interpolation_fs, 3, smooth, GL_FALSE);
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 	float vertices[] = {
-		-0.5f, -0.5f, 0.0f, // left
-		 0.5f, -0.5f, 0.0f, // right
-		 0.0f,  0.5f, 0.0f  // top
+		// positions         // colors
+		 0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // bottom right
+		-0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom left
+		 0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f   // top 
 	};
 
 	unsigned int VBO, VAO;
@@ -74,17 +68,19 @@ int main()
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	// position attribute
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
 	glEnableVertexAttribArray(0);
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 3 * sizeof(float));
+    glEnableVertexAttribArray(1);
 
-	// You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-	// VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-	// glBindVertexArray(0);
+    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
+    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
+    // glBindVertexArray(0);
 
-	// bind the VAO (it was already bound, but just to demonstrate): seeing as we only have a single VAO we can 
-	// just bind it beforehand before rendering the respective triangle; this is another approach.
-	glBindVertexArray(VAO);
-
+    // as we only have a single shader, we could also just activate our shader once beforehand if we want to 
+    glUseProgram(shaderProgram);
 
 	// render loop
 	// -----------
@@ -99,15 +95,6 @@ int main()
 		// ------
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-
-		// This isn't necessary because A, it's already active anb B, even if it weren't
-		// with PGL you can update the uniforms without the shader being active (ie
-		// the internals of the structure you passed the pointer to with pglSetUniform()
-		// glUseProgram(shaderProgram);
-
-		float timeValue = SDL_GetTicks()/1000.0f;
-		float greenValue = sin(timeValue) / 2.0f + 0.5f;
-		uniforms.ourColor = make_vec4(0.0f, greenValue, 0.0f, 1.0f);
 
 		// render the triangle
 		glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -210,5 +197,6 @@ void cleanup()
 
 	SDL_Quit();
 }
+
 
 

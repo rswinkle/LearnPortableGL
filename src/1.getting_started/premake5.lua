@@ -31,6 +31,10 @@ project "1.3.1.shaders_uniform"
 	kind "ConsoleApp"
 	files "shaders_uniform.cpp"
 
+project "1.3.2.shaders_interpolation"
+	kind "ConsoleApp"
+	files "shaders_interpolation.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
