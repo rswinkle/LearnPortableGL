@@ -43,6 +43,10 @@ project "1.4.2.textures_combined"
 	kind "ConsoleApp"
 	files "textures_combined.cpp"
 
+project "1.4.3.textures_exercise1"
+	kind "ConsoleApp"
+	files "textures_exercise1.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
