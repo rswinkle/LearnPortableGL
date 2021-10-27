@@ -19,6 +19,9 @@ bool handle_events();
 unsigned int scr_width = 640;
 unsigned int scr_height = 480;
 
+// stores how much we're seeing of either texture
+float mixValue = 0.2f;
+
 #define PIX_FORMAT SDL_PIXELFORMAT_ARGB8888
 
 SDL_Window* window;
@@ -31,6 +34,8 @@ glContext the_Context;
 struct My_Uniforms
 {
 	GLuint tex1;
+	GLuint tex2;
+	float mixValue;
 };
 
 // using PGL's internal vector types and functions in these shaders
@@ -53,8 +58,10 @@ void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	// FragColor = texture(tex1, TexCoord);
-	builtins->gl_FragColor = texture2D(u->tex1, fs_input[3], fs_input[4]);
+	// TODO add vector versions of texture mapping functions to PGL
+	//
+	// FragColor = mix(texture(tex1, TexCoord), texture(tex2, TexCoord), 0.2);
+	builtins->gl_FragColor = mix_vec4s(texture2D(u->tex1, fs_input[3], fs_input[4]), texture2D(u->tex2, fs_input[3], fs_input[4]), u->mixValue);
 }
 
 int main()
@@ -76,7 +83,7 @@ int main()
 		 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
 		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
 		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
-		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
+		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left
 	};
 	unsigned int indices[] = {
 		0, 1, 3, // first triangle
@@ -106,19 +113,22 @@ int main()
 	glEnableVertexAttribArray(2);
 
 
-	// load and create a texture 
+	// load and create a texture
 	// -------------------------
-	unsigned int texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
-	// set the texture wrapping parameters
+	unsigned int texture1, texture2;
+	// texture 1
+	// ---------
+	glGenTextures(1, &texture1);
+	glBindTexture(GL_TEXTURE_2D, texture1);
+	 // set the texture wrapping parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	// set texture filtering parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// load image, create texture and generate mipmaps
 	int width, height, nrChannels;
+	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
 	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
 	//
 	// NOTE: PGL currently only supports 32-bit RGBA, so always requset that of stbi_load
@@ -133,9 +143,34 @@ int main()
 		std::cout << "Failed to load texture" << std::endl;
 	}
 	stbi_image_free(data);
+	// texture 2
+	// ---------
+	glGenTextures(1, &texture2);
+	glBindTexture(GL_TEXTURE_2D, texture2);
+	// set the texture wrapping parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// set texture filtering parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// load image, create texture and generate mipmaps
+	data = stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
+	if (data)
+	{
+		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
 
-	// set uniform (uses handle, not "Active Unit")
-	uniforms.tex1 = texture;
+	// set uniforms (uses handles, not "Active Unit")
+	uniforms.tex1 = texture1;
+	uniforms.tex2 = texture2;
+	uniforms.mixValue = mixValue;
 
 
 	// render loop
@@ -152,10 +187,10 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		// set the texture mix value in the shader
+		uniforms.mixValue = mixValue;
+
 		// render container
-		//
-		// shader already active
-		//glUseProgram(ourShader);
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -194,6 +229,14 @@ bool handle_events()
 			
 			if (sc == SDL_SCANCODE_ESCAPE) {
 				return true;
+			} else if (sc == SDL_SCANCODE_UP) {
+				mixValue += 0.001f; // change for preferences/hardware
+				if (mixValue >= 1.0f)
+					mixValue = 1.0f;
+			} else if (sc == SDL_SCANCODE_DOWN) {
+				mixValue -= 0.001f; // change for preferences/hardware
+				if (mixValue <= 0.0f)
+					mixValue = 0.0f;
 			}
 			break;
 
@@ -228,7 +271,7 @@ void setup_context()
 		exit(0);
 	}
 
-	window = SDL_CreateWindow("textures", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	window = SDL_CreateWindow("textures_exercise4", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!window) {
 		std::cerr << "Failed to create window\n";
 		SDL_Quit();
@@ -257,4 +300,5 @@ void cleanup()
 
 	SDL_Quit();
 }
+
 
