@@ -47,6 +47,10 @@ project "1.4.3.textures_exercise1"
 	kind "ConsoleApp"
 	files "textures_exercise1.cpp"
 
+project "1.4.4.textures_exercise2"
+	kind "ConsoleApp"
+	files "textures_exercise2.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
