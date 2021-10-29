@@ -182,8 +182,9 @@ int main()
 
 		// create transformations (could modify uniforms.transform in place)
 		glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-		transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
+		// switched the order
 		transform = glm::rotate(transform, SDL_GetTicks()/1000.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+		transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
 		uniforms.transform = transform;
 
 		// render container
@@ -288,5 +289,6 @@ void cleanup()
 
 	SDL_Quit();
 }
+
 
 

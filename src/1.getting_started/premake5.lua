@@ -63,6 +63,15 @@ project "1.5.1.transformations"
 	kind "ConsoleApp"
 	files "transformations.cpp"
 
+	-- Should I really have this or match the original repo
+project "1.5.2.transformations_exercise1"
+	kind "ConsoleApp"
+	files "transformations_exercise1.cpp"
+
+project "1.5.3.transformations_exercise2"
+	kind "ConsoleApp"
+	files "transformations_exercise2.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"

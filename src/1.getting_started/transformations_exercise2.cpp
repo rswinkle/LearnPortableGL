@@ -182,13 +182,26 @@ int main()
 
 		// create transformations (could modify uniforms.transform in place)
 		glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+		// first container
+		// ---------------
 		transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
 		transform = glm::rotate(transform, SDL_GetTicks()/1000.0f, glm::vec3(0.0f, 0.0f, 1.0f));
 		uniforms.transform = transform;
 
-		// render container
+		// with the uniform matrix set draw the first container
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+		// second transformation
+		// ---------------------
+		transform = glm::mat4(1.0f); // reset it to identity matrix
+		transform = glm::translate(transform, glm::vec3(-0.5f, 0.5f, 0.0f));
+		float scaleAmount = sin(SDL_GetTicks()/1000.0f);
+		uniforms.transform = glm::scale(transform, glm::vec3(scaleAmount, scaleAmount, scaleAmount));
+
+		// now with the uniform matrix being replaced with new transformations, draw it again.
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
 
 		// SDL2: Update SDL_Texture to latest rendered frame, then blit to screen
 		// ----------------------------------------------------------------------
@@ -288,5 +301,6 @@ void cleanup()
 
 	SDL_Quit();
 }
+
 
 
