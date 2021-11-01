@@ -80,6 +80,10 @@ project "1.6.2.coordinate_systems_depth"
 	kind "ConsoleApp"
 	files "coordinate_systems_depth.cpp"
 
+project "1.6.3.coordinate_systems_multiple"
+	kind "ConsoleApp"
+	files "coordinate_systems_multiple.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
