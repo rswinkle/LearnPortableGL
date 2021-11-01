@@ -1,4 +1,3 @@
-#define MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -34,24 +33,35 @@ glContext the_Context;
 
 struct My_Uniforms
 {
-	glm::mat4 transform;
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 projection;
 	GLuint tex1;
 	GLuint tex2;
+	
 };
 
 // using PGL's internal vector types and functions in these shaders
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void coordinate_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
-	
-	*(glm::vec4*)&builtins->gl_Position = u->transform * ((glm::vec4*)vertex_attribs)[0];
+
+	glm::mat4 model = u->model;
+	glm::mat4 view = u->view;
+	glm::mat4 projection = u->projection;
+
+	// The 1 in w is there by default according to spec
+	glm::vec4 aPos = ((glm::vec4*)vertex_attribs)[0];
 
 	// TexCoord = aTexCoord;
+	//((glm::vec2*)vs_output)[0] = ((glm::vec4*)vertex_attribs)[1].xy(); //tex_coords
 	vs_output[0] = ((glm::vec4*)vertex_attribs)[1].x;
 	vs_output[1] = ((glm::vec4*)vertex_attribs)[1].y;
 
+	*(glm::vec4*)&builtins->gl_Position = projection * view * model * aPos;
+
 }
-void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
+void coordinate_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -67,8 +77,8 @@ int main()
 
 	// build our shader program
 	// ------------------------
-	GLenum smooth[2] = { SMOOTH, SMOOTH };
-	unsigned int ourShader = pglCreateProgram(texture_vs, texture_fs, 2, smooth, GL_FALSE);
+	GLenum smooth[5] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	unsigned int ourShader = pglCreateProgram(coordinate_vs, coordinate_fs, 5, smooth, GL_FALSE);
 	glUseProgram(ourShader);
 	My_Uniforms uniforms;
 	pglSetUniform(&uniforms);
@@ -80,7 +90,7 @@ int main()
 		 0.5f,  0.5f, 0.0f,   1.0f, 1.0f, // top right
 		 0.5f, -0.5f, 0.0f,   1.0f, 0.0f, // bottom right
 		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, // bottom left
-		-0.5f,  0.5f, 0.0f,   0.0f, 1.0f  // top left
+		-0.5f,  0.5f, 0.0f,   0.0f, 1.0f  // top left 
 	};
 	unsigned int indices[] = {
 		0, 1, 3, // first triangle
@@ -123,8 +133,6 @@ int main()
 	// load image, create texture and generate mipmaps
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-	//
 	// NOTE: PGL currently only supports 32-bit RGBA, so always requset that of stbi_load
 	unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
 	if (data)
@@ -142,7 +150,7 @@ int main()
 	glGenTextures(1, &texture2);
 	glBindTexture(GL_TEXTURE_2D, texture2);
 	// set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	// set texture filtering parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -180,12 +188,14 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		// create transformations (could modify uniforms.transform in place)
-		glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-		// switched the order
-		transform = glm::rotate(transform, SDL_GetTicks()/1000.0f, glm::vec3(0.0f, 0.0f, 1.0f));
-		transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
-		uniforms.transform = transform;
+		// create transformations and set uniforms
+		glm::mat4 model         = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+		glm::mat4 view          = glm::mat4(1.0f);
+		glm::mat4 projection    = glm::mat4(1.0f);
+
+		uniforms.model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		uniforms.view  = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+		uniforms.projection = glm::perspective(glm::radians(45.0f), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
 
 		// render container
 		glBindVertexArray(VAO);
@@ -260,7 +270,7 @@ void setup_context()
 		exit(0);
 	}
 
-	window = SDL_CreateWindow("transformations_exercise1", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	window = SDL_CreateWindow("textures_combined", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!window) {
 		std::cerr << "Failed to create window\n";
 		SDL_Quit();
@@ -289,6 +299,5 @@ void cleanup()
 
 	SDL_Quit();
 }
-
 
 

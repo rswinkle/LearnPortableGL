@@ -72,6 +72,10 @@ project "1.5.3.transformations_exercise2"
 	kind "ConsoleApp"
 	files "transformations_exercise2.cpp"
 
+project "1.6.1.coordinate_systems"
+	kind "ConsoleApp"
+	files "coordinate_systems.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
