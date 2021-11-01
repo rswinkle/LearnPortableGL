@@ -22,7 +22,9 @@ workspace "LearnPortableGL"
 	printf("%s", _WORKING_DIR)
 
 	-- generate stupid file for filesystem.h
-	io.writefile("inc/root_directory.h", "const char* logl_root = \"".._WORKING_DIR.."\";")
+	if not os.isfile("inc/root_directory.h") then
+		io.writefile("inc/root_directory.h", "const char* logl_root = \"".._WORKING_DIR.."\";")
+	end
 
 
 	include "src/1.getting_started"
