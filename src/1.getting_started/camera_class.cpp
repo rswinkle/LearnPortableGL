@@ -210,7 +210,6 @@ int main()
 	the_uniforms.tex1 = texture1;
 	the_uniforms.tex2 = texture2;
 
-
 	// render loop
 	// -----------
 	while (true)
@@ -230,15 +229,6 @@ int main()
 		// ------
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
-		// bind textures on corresponding texture units
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, texture1);
-		//glActiveTexture(GL_TEXTURE1);
-		//glBindTexture(GL_TEXTURE_2D, texture2);
-
-		// activate shader TODO (we never change shaders so why call this?)
-		glUseProgram(ourShader);
 
 		// pass projection matrix to shader (note that in this case it could change every frame)
 		the_uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
@@ -332,8 +322,8 @@ bool handle_events()
 		case SDL_MOUSEMOTION:
 		{
 			float dx = event.motion.xrel;
-			float dy = event.motion.yrel;
-			camera.ProcessMouseMovement(dx, -dy);
+			float dy = -event.motion.yrel; // reversed since y coordinates go from bottom to top
+			camera.ProcessMouseMovement(dx, dy);
 		} break;
 
 		case SDL_MOUSEWHEEL:
@@ -344,17 +334,17 @@ bool handle_events()
 
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
 	
-	if (state[SDL_SCANCODE_A]) {
-		camera.ProcessKeyboard(LEFT, deltaTime);
-	}
-	if (state[SDL_SCANCODE_D]) {
-		camera.ProcessKeyboard(RIGHT, deltaTime);
-	}
 	if (state[SDL_SCANCODE_W]) {
 		camera.ProcessKeyboard(FORWARD, deltaTime);
 	}
 	if (state[SDL_SCANCODE_S]) {
 		camera.ProcessKeyboard(BACKWARD, deltaTime);
+	}
+	if (state[SDL_SCANCODE_A]) {
+		camera.ProcessKeyboard(LEFT, deltaTime);
+	}
+	if (state[SDL_SCANCODE_D]) {
+		camera.ProcessKeyboard(RIGHT, deltaTime);
 	}
 
 	return false;
