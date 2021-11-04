@@ -55,7 +55,7 @@ u32* bbufpix;
 glContext the_Context;
 
 GLuint ourShader;
-My_Uniforms the_uniforms;
+My_Uniforms uniforms;
 
 int main()
 {
@@ -75,7 +75,7 @@ int main()
 	GLenum smooth[2] = { SMOOTH, SMOOTH };
 	ourShader = pglCreateProgram(camera_vs, camera_fs, 2, smooth, GL_FALSE);
 	glUseProgram(ourShader);
-	pglSetUniform(&the_uniforms);
+	pglSetUniform(&uniforms);
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -206,9 +206,9 @@ int main()
 	// Set the uniforms to texture handles (no active textures/texture units in PortableGL)
 	// -------------------------------------------------------------------------------------------
 	glUseProgram(ourShader);
-	pglSetUniform(&the_uniforms);
-	the_uniforms.tex1 = texture1;
-	the_uniforms.tex2 = texture2;
+	pglSetUniform(&uniforms);
+	uniforms.tex1 = texture1;
+	uniforms.tex2 = texture2;
 
 	// render loop
 	// -----------
@@ -231,10 +231,10 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
 		// pass projection matrix to shader (note that in this case it could change every frame)
-		the_uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
+		uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
 
 		// camera/view transformation
-		the_uniforms.view = camera.GetViewMatrix();
+		uniforms.view = camera.GetViewMatrix();
 
 		// render boxes
 		glBindVertexArray(VAO);
@@ -244,7 +244,7 @@ int main()
 			glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
 			model = glm::translate(model, cubePositions[i]);
 			float angle = 20.0f * i;
-			the_uniforms.model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			uniforms.model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
 
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}

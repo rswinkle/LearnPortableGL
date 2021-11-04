@@ -28,3 +28,4 @@ workspace "LearnPortableGL"
 
 
 	include "src/1.getting_started"
+	include "src/2.lighting"
