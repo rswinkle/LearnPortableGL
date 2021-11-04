@@ -88,6 +88,10 @@ project "1.7.1.camera_circle"
 	kind "ConsoleApp"
 	files "camera_circle.cpp"
 
+project "1.7.2.camera_keyboard_dt"
+	kind "ConsoleApp"
+	files "camera_keyboard_dt.cpp"
+
 project "1.7.4.camera_class"
 	kind "ConsoleApp"
 	files "camera_class.cpp"
