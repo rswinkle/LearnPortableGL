@@ -22,6 +22,7 @@ struct My_Uniforms
 
 	glm::vec3 objectColor;
 	glm::vec3 lightColor;
+	glm::vec3 lightPos;
 	
 };
 
@@ -29,9 +30,10 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void colors_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
-void colors_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
+void basic_lighting_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void basic_lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
+void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 // settings
@@ -73,58 +75,59 @@ int main()
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
-	GLuint lightingShader = pglCreateProgram(colors_vs, colors_fs, 0, NULL, GL_FALSE);
+	GLenum smooth[] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	GLuint lightingShader = pglCreateProgram(basic_lighting_vs, basic_lighting_fs, 6, smooth, GL_FALSE);
 	glUseProgram(lightingShader);
 	pglSetUniform(&uniforms);
 
-	GLuint lightCubeShader = pglCreateProgram(colors_vs, light_cube_fs, 0, NULL, GL_FALSE);
+	GLuint lightCubeShader = pglCreateProgram(light_cube_vs, light_cube_fs, 0, NULL, GL_FALSE);
 	glUseProgram(lightCubeShader);
 	pglSetUniform(&uniforms);
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 	float vertices[] = {
-		-0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f,  0.5f, -0.5f,
-		 0.5f,  0.5f, -0.5f,
-		-0.5f,  0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
 
-		-0.5f, -0.5f,  0.5f,
-		 0.5f, -0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f,  0.5f,
-		-0.5f, -0.5f,  0.5f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
 
-		-0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-		-0.5f, -0.5f,  0.5f,
-		-0.5f,  0.5f,  0.5f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-		 0.5f,  0.5f,  0.5f,
-		 0.5f,  0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-		-0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f,  0.5f,
-		 0.5f, -0.5f,  0.5f,
-		-0.5f, -0.5f,  0.5f,
-		-0.5f, -0.5f, -0.5f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
-		-0.5f,  0.5f, -0.5f,
-		 0.5f,  0.5f, -0.5f,
-		 0.5f,  0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f, -0.5f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
 	};
 	// first, configure the cube's VAO (and VBO)
 	unsigned int VBO, cubeVAO;
@@ -137,20 +140,22 @@ int main()
 	glBindVertexArray(cubeVAO);
 
 	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
 	glEnableVertexAttribArray(0);
+	// normal attribute
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 3 * sizeof(float));
+	glEnableVertexAttribArray(1);
+
 
 	// second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
 	unsigned int lightCubeVAO;
 	glGenVertexArrays(1, &lightCubeVAO);
 	glBindVertexArray(lightCubeVAO);
 
-	// we only need to bind to the VBO (to link it with glVertexAttribPointer), no need to fill it; the VBO's data already contains all we need (it's already bound, but we do it again for educational purposes)
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	// note that we update the lamp's position attribute's stride to reflect the updated buffer data
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
 	glEnableVertexAttribArray(0);
-
 	// render loop
 	// -----------
 	while (true)
@@ -175,6 +180,7 @@ int main()
 		glUseProgram(lightingShader);
 		uniforms.objectColor = glm::vec3(1.0f, 0.5f, 0.31f);
 		uniforms.lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+		uniforms.lightPos = lightPos;
 
 		// view/projection transformations
 		uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
@@ -321,7 +327,7 @@ void setup_context()
 		exit(0);
 	}
 
-	window = SDL_CreateWindow("colors", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	window = SDL_CreateWindow("LearnPortablGL", 100, 100, scr_width, scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!window) {
 		std::cerr << "Failed to create window\n";
 		SDL_Quit();
@@ -340,7 +346,49 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void colors_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void basic_lighting_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+{
+	My_Uniforms* u = (My_Uniforms*)uniforms;
+
+	glm::mat4 model = u->model;
+	glm::mat4 view = u->view;
+	glm::mat4 projection = u->projection;
+
+	// The 1 in w is there by default according to spec
+	glm::vec4 aPos = ((glm::vec4*)vertex_attribs)[0];
+	glm::vec3 aNormal = glm::vec3(((glm::vec4*)vertex_attribs)[1]);
+
+	glm::vec3 FragPos = glm::vec3(model * aPos);
+	*(glm::vec3*)vs_output = FragPos;
+
+	// Normal = aNormal
+	((glm::vec3*)vs_output)[1] = aNormal;
+
+	*(glm::vec4*)&builtins->gl_Position = projection * view * glm::vec4(FragPos, 1.0f);
+}
+
+void basic_lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
+{
+	My_Uniforms* u = (My_Uniforms*)uniforms;
+
+	glm::vec3 FragPos = ((glm::vec3*)fs_input)[0];
+	glm::vec3 Normal = ((glm::vec3*)fs_input)[1];
+
+	// ambient
+	float ambientStrength = 0.1f;
+	glm::vec3 ambient = ambientStrength * u->lightColor;
+
+	// diffuse
+	glm::vec3 norm = glm::normalize(Normal);
+	glm::vec3 lightDir = glm::normalize(u->lightPos - FragPos);
+	float diff = glm::max(glm::dot(norm, lightDir), 0.0f);
+	glm::vec3 diffuse = diff * u->lightColor;
+	
+	glm::vec3 result = (ambient + diffuse) * u->objectColor;
+	*(glm::vec4*)&builtins->gl_FragColor = glm::vec4(result, 1.0f);
+}
+
+void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -352,13 +400,6 @@ void colors_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins
 	glm::vec4 aPos = ((glm::vec4*)vertex_attribs)[0];
 
 	*(glm::vec4*)&builtins->gl_Position = projection * view * model * aPos;
-}
-
-void colors_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
-{
-	My_Uniforms* u = (My_Uniforms*)uniforms;
-	
-	*(glm::vec4*)&builtins->gl_FragColor = glm::vec4(u->lightColor * u->objectColor, 1.0f);
 }
 
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
@@ -377,5 +418,6 @@ void cleanup()
 
 	SDL_Quit();
 }
+
 
 

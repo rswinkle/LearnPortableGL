@@ -35,6 +35,7 @@ ifeq ($(config),debug)
   1.7.3.camera_mouse_zoom.cpp_config = debug
   1.7.4.camera_class_config = debug
   2.1.1.colors_config = debug
+  2.2.1.basic_lighting_diffuse_config = debug
 endif
 ifeq ($(config),release)
   1.1.1.hello_window_config = release
@@ -63,9 +64,10 @@ ifeq ($(config),release)
   1.7.3.camera_mouse_zoom.cpp_config = release
   1.7.4.camera_class_config = release
   2.1.1.colors_config = release
+  2.2.1.basic_lighting_diffuse_config = release
 endif
 
-PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.1.colors
+PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.1.colors 2.2.1.basic_lighting_diffuse
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -227,6 +229,12 @@ ifneq (,$(2.1.1.colors_config))
 	@${MAKE} --no-print-directory -C . -f 2.1.1.colors.make config=$(2.1.1.colors_config)
 endif
 
+2.2.1.basic_lighting_diffuse:
+ifneq (,$(2.2.1.basic_lighting_diffuse_config))
+	@echo "==== Building 2.2.1.basic_lighting_diffuse ($(2.2.1.basic_lighting_diffuse_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 2.2.1.basic_lighting_diffuse.make config=$(2.2.1.basic_lighting_diffuse_config)
+endif
+
 clean:
 	@${MAKE} --no-print-directory -C . -f 1.1.1.hello_window.make clean
 	@${MAKE} --no-print-directory -C . -f 1.1.2.hello_window_clear.make clean
@@ -254,6 +262,7 @@ clean:
 	@${MAKE} --no-print-directory -C . -f 1.7.3.camera_mouse_zoom.cpp.make clean
 	@${MAKE} --no-print-directory -C . -f 1.7.4.camera_class.make clean
 	@${MAKE} --no-print-directory -C . -f 2.1.1.colors.make clean
+	@${MAKE} --no-print-directory -C . -f 2.2.1.basic_lighting_diffuse.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -291,5 +300,6 @@ help:
 	@echo "   1.7.3.camera_mouse_zoom.cpp"
 	@echo "   1.7.4.camera_class"
 	@echo "   2.1.1.colors"
+	@echo "   2.2.1.basic_lighting_diffuse"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"
