@@ -14,15 +14,17 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
+using namespace glm;
+
 struct My_Uniforms
 {
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 projection;
+	mat4 model;
+	mat4 view;
+	mat4 projection;
 
-	glm::vec3 objectColor;
-	glm::vec3 lightColor;
-	glm::vec3 lightPos;
+	vec3 objectColor;
+	vec3 lightColor;
+	vec3 lightPos;
 	
 };
 
@@ -41,14 +43,14 @@ unsigned int scr_width = 640;
 unsigned int scr_height = 480;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(vec3(0.0f, 0.0f, 3.0f));
 
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 // lighting
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 SDL_Window* window;
 SDL_Renderer* ren;
@@ -178,16 +180,16 @@ int main()
 		
 		// be sure to activate shader when setting uniforms/drawing objects
 		glUseProgram(lightingShader);
-		uniforms.objectColor = glm::vec3(1.0f, 0.5f, 0.31f);
-		uniforms.lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+		uniforms.objectColor = vec3(1.0f, 0.5f, 0.31f);
+		uniforms.lightColor = vec3(1.0f, 1.0f, 1.0f);
 		uniforms.lightPos = lightPos;
 
 		// view/projection transformations
-		uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
+		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
 		uniforms.view = camera.GetViewMatrix();
 
 		// world transformation
-		uniforms.model = glm::mat4(1.0f);
+		uniforms.model = mat4(1.0f);
 
 		// render the cube
 		glBindVertexArray(cubeVAO);
@@ -196,9 +198,9 @@ int main()
 		// also draw the lamp object
 		glUseProgram(lightCubeShader);
 		// projection and view matrices are already set correctly
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, lightPos);
-		uniforms.model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+		mat4 model = mat4(1.0f);
+		model = translate(model, lightPos);
+		uniforms.model = scale(model, vec3(0.2f)); // a smaller cube
 
 		glBindVertexArray(lightCubeVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -350,62 +352,62 @@ void basic_lighting_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* 
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	glm::mat4 model = u->model;
-	glm::mat4 view = u->view;
-	glm::mat4 projection = u->projection;
+	mat4 model = u->model;
+	mat4 view = u->view;
+	mat4 projection = u->projection;
 
 	// The 1 in w is there by default according to spec
-	glm::vec4 aPos = ((glm::vec4*)vertex_attribs)[0];
-	glm::vec3 aNormal = glm::vec3(((glm::vec4*)vertex_attribs)[1]);
+	vec4 aPos = ((vec4*)vertex_attribs)[0];
+	vec3 aNormal = vec3(((vec4*)vertex_attribs)[1]);
 
-	glm::vec3 FragPos = glm::vec3(model * aPos);
-	*(glm::vec3*)vs_output = FragPos;
+	vec3 FragPos = vec3(model * aPos);
+	*(vec3*)vs_output = FragPos;
 
 	// Normal = aNormal
-	((glm::vec3*)vs_output)[1] = aNormal;
+	((vec3*)vs_output)[1] = aNormal;
 
-	*(glm::vec4*)&builtins->gl_Position = projection * view * glm::vec4(FragPos, 1.0f);
+	*(vec4*)&builtins->gl_Position = projection * view * vec4(FragPos, 1.0f);
 }
 
 void basic_lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	glm::vec3 FragPos = ((glm::vec3*)fs_input)[0];
-	glm::vec3 Normal = ((glm::vec3*)fs_input)[1];
+	vec3 FragPos = ((vec3*)fs_input)[0];
+	vec3 Normal = ((vec3*)fs_input)[1];
 
 	// ambient
 	float ambientStrength = 0.1f;
-	glm::vec3 ambient = ambientStrength * u->lightColor;
+	vec3 ambient = ambientStrength * u->lightColor;
 
 	// diffuse
-	glm::vec3 norm = glm::normalize(Normal);
-	glm::vec3 lightDir = glm::normalize(u->lightPos - FragPos);
-	float diff = glm::max(glm::dot(norm, lightDir), 0.0f);
-	glm::vec3 diffuse = diff * u->lightColor;
+	vec3 norm = normalize(Normal);
+	vec3 lightDir = normalize(u->lightPos - FragPos);
+	float diff = max(dot(norm, lightDir), 0.0f);
+	vec3 diffuse = diff * u->lightColor;
 	
-	glm::vec3 result = (ambient + diffuse) * u->objectColor;
-	*(glm::vec4*)&builtins->gl_FragColor = glm::vec4(result, 1.0f);
+	vec3 result = (ambient + diffuse) * u->objectColor;
+	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
 }
 
 void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	glm::mat4 model = u->model;
-	glm::mat4 view = u->view;
-	glm::mat4 projection = u->projection;
+	mat4 model = u->model;
+	mat4 view = u->view;
+	mat4 projection = u->projection;
 
 	// The 1 in w is there by default according to spec
-	glm::vec4 aPos = ((glm::vec4*)vertex_attribs)[0];
+	vec4 aPos = ((vec4*)vertex_attribs)[0];
 
-	*(glm::vec4*)&builtins->gl_Position = projection * view * model * aPos;
+	*(vec4*)&builtins->gl_Position = projection * view * model * aPos;
 }
 
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	//builtins->gl_FragColor = make_vec4(1.0f, 1.0f, 1.0f, 1.0f);
-	*(glm::vec4*)&builtins->gl_FragColor = glm::vec4(1.0f);
+	*(vec4*)&builtins->gl_FragColor = vec4(1.0f);
 }
 
 void cleanup()
