@@ -22,3 +22,7 @@ project "2.2.4.basic_lighting_exercise2"
 project "2.2.5.basic_lighting_exercise3"
 	kind "ConsoleApp"
 	files "basic_lighting_exercise3.cpp"
+
+project "2.3.1.materials"
+	kind "ConsoleApp"
+	files "materials.cpp"
