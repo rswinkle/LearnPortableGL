@@ -30,3 +30,9 @@ project "2.3.1.materials"
 project "2.3.2.materials_exercise1"
 	kind "ConsoleApp"
 	files "materials_exercise1.cpp"
+
+project "2.4.1.lighting_maps_diffuse"
+	kind "ConsoleApp"
+	files "lighting_maps_diffuse.cpp"
+
+
