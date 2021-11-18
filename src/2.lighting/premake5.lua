@@ -35,4 +35,6 @@ project "2.4.1.lighting_maps_diffuse"
 	kind "ConsoleApp"
 	files "lighting_maps_diffuse.cpp"
 
-
+project "2.4.2.lighting_maps_specular"
+	kind "ConsoleApp"
+	files "lighting_maps_specular.cpp"
