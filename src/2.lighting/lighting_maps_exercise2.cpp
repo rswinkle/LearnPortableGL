@@ -30,7 +30,7 @@ struct Light
 struct Material
 {
 	GLuint diffuse;
-	vec3 specular;
+	GLuint specular;
 	float shininess;
 };
 
@@ -180,10 +180,12 @@ int main()
 	// load textures (we now use a utility function to keep the code more organized)
 	// -----------------------------------------------------------------------------
 	unsigned int diffuseMap = loadTexture(FileSystem::getPath("resources/textures/container2.png").c_str());
+    unsigned int specularMap = loadTexture(FileSystem::getPath("resources/textures/container2_specular.png").c_str());
 
 	// shader configuration
 	// --------------------
 	uniforms.material.diffuse = diffuseMap;
+	uniforms.material.specular = specularMap;
 
 	// render loop
 	// -----------
@@ -216,9 +218,7 @@ int main()
 		uniforms.light.specular = vec3(1.0f);
 
 		// material properties
-		uniforms.material.specular = vec3(0.5f, 0.5f, 0.5f); // specular lighting doesn't have full effect on this object's material
 		uniforms.material.shininess = 64.0f;
-		
 
 		// view/projection transformations
 		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
@@ -437,11 +437,11 @@ void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	vec3 viewDir = normalize(u->viewPos - FragPos);
 	vec3 reflectDir = reflect(-lightDir, norm);
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0f), material.shininess);
-	vec3 specular = light.specular * (spec * material.specular);
+	vec3 spec_color = vec3(toglm(texture2D(material.specular, TexCoords.x, TexCoords.y)));
+	// here we inverse the sampled specular color. Black becomes white and white becomes black TODO doesn't look right
+	vec3 specular = light.specular * (spec * (vec3(1.0f)-spec_color));
 
-	
-	vec3 result = ambient + diffuse + specular;
-	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
+	*(vec4*)&builtins->gl_FragColor = vec4(ambient + diffuse + specular, 1.0f);
 }
 
 void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
@@ -516,6 +516,8 @@ unsigned int loadTexture(char const * path)
 
 	return textureID;
 }
+
+
 
 
 

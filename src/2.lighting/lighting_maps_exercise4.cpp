@@ -30,7 +30,8 @@ struct Light
 struct Material
 {
 	GLuint diffuse;
-	vec3 specular;
+	GLuint specular;
+	GLuint emission;
 	float shininess;
 };
 
@@ -180,10 +181,14 @@ int main()
 	// load textures (we now use a utility function to keep the code more organized)
 	// -----------------------------------------------------------------------------
 	unsigned int diffuseMap = loadTexture(FileSystem::getPath("resources/textures/container2.png").c_str());
+    unsigned int specularMap = loadTexture(FileSystem::getPath("resources/textures/container2_specular.png").c_str());
+    unsigned int emissionMap = loadTexture(FileSystem::getPath("resources/textures/matrix.jpg").c_str());
 
 	// shader configuration
 	// --------------------
 	uniforms.material.diffuse = diffuseMap;
+	uniforms.material.specular = specularMap;
+	uniforms.material.emission = emissionMap;
 
 	// render loop
 	// -----------
@@ -216,9 +221,7 @@ int main()
 		uniforms.light.specular = vec3(1.0f);
 
 		// material properties
-		uniforms.material.specular = vec3(0.5f, 0.5f, 0.5f); // specular lighting doesn't have full effect on this object's material
 		uniforms.material.shininess = 64.0f;
-		
 
 		// view/projection transformations
 		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
@@ -437,10 +440,13 @@ void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	vec3 viewDir = normalize(u->viewPos - FragPos);
 	vec3 reflectDir = reflect(-lightDir, norm);
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0f), material.shininess);
-	vec3 specular = light.specular * (spec * material.specular);
+	vec3 spec_color = vec3(toglm(texture2D(material.specular, TexCoords.x, TexCoords.y)));
+	vec3 specular = light.specular * (spec * spec_color);
 
-	
-	vec3 result = ambient + diffuse + specular;
+	// emmission
+	vec3 emission = vec3(toglm(texture2D(material.emission, TexCoords.x, TexCoords.y)));
+
+	vec3 result = ambient + diffuse + specular + emission;
 	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
 }
 
@@ -516,6 +522,8 @@ unsigned int loadTexture(char const * path)
 
 	return textureID;
 }
+
+
 
 
 
