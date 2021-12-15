@@ -47,6 +47,7 @@ ifeq ($(config),debug)
   2.4.3.lighting_maps_exercise2_config = debug
   2.4.4.lighting_maps_exercise4_config = debug
   2.5.1.light_casters_directional_config = debug
+  2.5.2.light_casters_point_config = debug
 endif
 ifeq ($(config),release)
   1.1.1.hello_window_config = release
@@ -87,9 +88,10 @@ ifeq ($(config),release)
   2.4.3.lighting_maps_exercise2_config = release
   2.4.4.lighting_maps_exercise4_config = release
   2.5.1.light_casters_directional_config = release
+  2.5.2.light_casters_point_config = release
 endif
 
-PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.1.colors 2.2.1.basic_lighting_diffuse 2.2.2.basic_lighting_specular 2.2.3.basic_lighting_exercise1 2.2.4.basic_lighting_exercise2 2.2.5.basic_lighting_exercise3 2.3.1.materials 2.3.2.materials_exercise1 2.4.1.lighting_maps_diffuse 2.4.2.lighting_maps_specular 2.4.3.lighting_maps_exercise2 2.4.4.lighting_maps_exercise4 2.5.1.light_casters_directional
+PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.1.colors 2.2.1.basic_lighting_diffuse 2.2.2.basic_lighting_specular 2.2.3.basic_lighting_exercise1 2.2.4.basic_lighting_exercise2 2.2.5.basic_lighting_exercise3 2.3.1.materials 2.3.2.materials_exercise1 2.4.1.lighting_maps_diffuse 2.4.2.lighting_maps_specular 2.4.3.lighting_maps_exercise2 2.4.4.lighting_maps_exercise4 2.5.1.light_casters_directional 2.5.2.light_casters_point
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -323,6 +325,12 @@ ifneq (,$(2.5.1.light_casters_directional_config))
 	@${MAKE} --no-print-directory -C . -f 2.5.1.light_casters_directional.make config=$(2.5.1.light_casters_directional_config)
 endif
 
+2.5.2.light_casters_point:
+ifneq (,$(2.5.2.light_casters_point_config))
+	@echo "==== Building 2.5.2.light_casters_point ($(2.5.2.light_casters_point_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 2.5.2.light_casters_point.make config=$(2.5.2.light_casters_point_config)
+endif
+
 clean:
 	@${MAKE} --no-print-directory -C . -f 1.1.1.hello_window.make clean
 	@${MAKE} --no-print-directory -C . -f 1.1.2.hello_window_clear.make clean
@@ -362,6 +370,7 @@ clean:
 	@${MAKE} --no-print-directory -C . -f 2.4.3.lighting_maps_exercise2.make clean
 	@${MAKE} --no-print-directory -C . -f 2.4.4.lighting_maps_exercise4.make clean
 	@${MAKE} --no-print-directory -C . -f 2.5.1.light_casters_directional.make clean
+	@${MAKE} --no-print-directory -C . -f 2.5.2.light_casters_point.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -411,5 +420,6 @@ help:
 	@echo "   2.4.3.lighting_maps_exercise2"
 	@echo "   2.4.4.lighting_maps_exercise4"
 	@echo "   2.5.1.light_casters_directional"
+	@echo "   2.5.2.light_casters_point"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"

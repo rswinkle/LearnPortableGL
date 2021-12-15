@@ -51,3 +51,6 @@ project "2.5.1.light_casters_directional"
 	kind "ConsoleApp"
 	files "light_casters_directional.cpp"
 
+project "2.5.2.light_casters_point"
+	kind "ConsoleApp"
+	files "light_casters_point.cpp"
