@@ -22,6 +22,7 @@ using namespace glm;
 struct Light
 {
 	vec3 position;
+	vec3 direction;
 	vec3 ambient;
 	vec3 diffuse;
 	vec3 specular;
@@ -67,9 +68,6 @@ Camera camera(vec3(0.0f, 0.0f, 3.0f));
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-
-// lighting
-vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 SDL_Window* window;
 SDL_Renderer* ren;
@@ -151,6 +149,20 @@ int main()
 		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
 		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
 	};
+	// positions all containers
+	glm::vec3 cubePositions[] = {
+		glm::vec3( 0.0f,  0.0f,  0.0f),
+		glm::vec3( 2.0f,  5.0f, -15.0f),
+		glm::vec3(-1.5f, -2.2f, -2.5f),
+		glm::vec3(-3.8f, -2.0f, -12.3f),
+		glm::vec3( 2.4f, -0.4f, -3.5f),
+		glm::vec3(-1.7f,  3.0f, -7.5f),
+		glm::vec3( 1.3f, -2.0f, -2.5f),
+		glm::vec3( 1.5f,  2.0f, -2.5f),
+		glm::vec3( 1.5f,  0.2f, -1.5f),
+		glm::vec3(-1.3f,  1.0f, -1.5f)
+	};
+
 	// first, configure the cube's VAO (and VBO)
 	unsigned int VBO, cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
@@ -180,7 +192,7 @@ int main()
 	// load textures (we now use a utility function to keep the code more organized)
 	// -----------------------------------------------------------------------------
 	unsigned int diffuseMap = loadTexture(FileSystem::getPath("resources/textures/container2.png").c_str());
-    unsigned int specularMap = loadTexture(FileSystem::getPath("resources/textures/container2_specular.png").c_str());
+	unsigned int specularMap = loadTexture(FileSystem::getPath("resources/textures/container2_specular.png").c_str());
 
 	// shader configuration
 	// --------------------
@@ -206,10 +218,9 @@ int main()
 		// ------
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// be sure to activate shader when setting uniforms/drawing objects
+		
 		glUseProgram(lightingShader);
-		uniforms.light.position = lightPos;
+		uniforms.light.direction = vec3(-0.2f, -1.0f, -0.3f);
 		uniforms.viewPos = camera.Position;
 
 		// light properties
@@ -218,7 +229,7 @@ int main()
 		uniforms.light.specular = vec3(1.0f);
 
 		// material properties
-		uniforms.material.shininess = 64.0f;
+		uniforms.material.shininess = 32.0f;
 
 		// view/projection transformations
 		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
@@ -228,18 +239,32 @@ int main()
 		uniforms.model = mat4(1.0f);
 
 		// render the cube
+		//glBindVertexArray(cubeVAO);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		// render containers
 		glBindVertexArray(cubeVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		for (unsigned int i = 0; i < 10; i++)
+		{
+			// calculate the model matrix for each object and pass it to shader before drawing
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, cubePositions[i]);
+			float angle = 20.0f * i;
+			uniforms.model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
 
-		// also draw the lamp object
-		glUseProgram(lightCubeShader);
-		// projection and view matrices are already set correctly
-		mat4 model = mat4(1.0f);
-		model = translate(model, lightPos);
-		uniforms.model = scale(model, vec3(0.2f)); // a smaller cube
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
 
-		glBindVertexArray(lightCubeVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		// a lamp object is weird when we only have a directional light, don't render the light object
+		//glUseProgram(lightCubeShader);
+		//// projection and view matrices are already set correctly
+		//mat4 model = mat4(1.0f);
+		//model = translate(model, lightPos);
+		//uniforms.model = scale(model, vec3(0.2f)); // a smaller cube
+
+		//glBindVertexArray(lightCubeVAO);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		// SDL2: blit texture (ie latest rendered frame) to screen
 		// -------------------------------------------------------------------------------
@@ -273,7 +298,7 @@ bool handle_events()
 			return true;
 		case SDL_KEYDOWN:
 			sc = event.key.keysym.scancode;
-
+			
 			switch (sc) {
 			case SDL_SCANCODE_ESCAPE:
 				return true;
@@ -326,7 +351,7 @@ bool handle_events()
 	}
 
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
-
+	
 	if (state[SDL_SCANCODE_W]) {
 		camera.ProcessKeyboard(FORWARD, deltaTime);
 	}
@@ -429,7 +454,8 @@ void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 
 	// diffuse
 	vec3 norm = normalize(Normal);
-	vec3 lightDir = normalize(light.position - FragPos);
+	//vec3 lightDir = normalize(light.position - FragPos);
+	vec3 lightDir = normalize(-light.direction);
 	float diff = max(dot(norm, lightDir), 0.0f);
 	vec3 diffuse = light.diffuse * (diff * diffuse_color);
 
@@ -438,10 +464,10 @@ void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	vec3 reflectDir = reflect(-lightDir, norm);
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0f), material.shininess);
 	vec3 spec_color = vec3(toglm(texture2D(material.specular, TexCoords.x, TexCoords.y)));
-	// here we inverse the sampled specular color. Black becomes white and white becomes black TODO doesn't look right
-	vec3 specular = light.specular * (spec * (vec3(1.0f)-spec_color));
+	vec3 specular = light.specular * (spec * spec_color);
 
-	*(vec4*)&builtins->gl_FragColor = vec4(ambient + diffuse + specular, 1.0f);
+	vec3 result = ambient + diffuse + specular;
+	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
 }
 
 void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
@@ -516,7 +542,6 @@ unsigned int loadTexture(char const * path)
 
 	return textureID;
 }
-
 
 
 

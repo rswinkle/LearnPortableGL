@@ -46,3 +46,8 @@ project "2.4.3.lighting_maps_exercise2"
 project "2.4.4.lighting_maps_exercise4"
 	kind "ConsoleApp"
 	files "lighting_maps_exercise4.cpp"
+
+project "2.5.1.light_casters_directional"
+	kind "ConsoleApp"
+	files "light_casters_directional.cpp"
+

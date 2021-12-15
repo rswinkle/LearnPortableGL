@@ -209,7 +209,7 @@ int main()
 		// ------
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
+
 		// be sure to activate shader when setting uniforms/drawing objects
 		glUseProgram(lightingShader);
 		uniforms.light.position = lightPos;
@@ -276,7 +276,7 @@ bool handle_events()
 			return true;
 		case SDL_KEYDOWN:
 			sc = event.key.keysym.scancode;
-			
+
 			switch (sc) {
 			case SDL_SCANCODE_ESCAPE:
 				return true;
@@ -329,7 +329,7 @@ bool handle_events()
 	}
 
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
-	
+
 	if (state[SDL_SCANCODE_W]) {
 		camera.ProcessKeyboard(FORWARD, deltaTime);
 	}
