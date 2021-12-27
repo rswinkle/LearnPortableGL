@@ -58,3 +58,8 @@ project "2.5.2.light_casters_point"
 project "2.5.3.light_casters_spot"
 	kind "ConsoleApp"
 	files "light_casters_spot.cpp"
+
+project "2.5.4.light_casters_spot_soft"
+	kind "ConsoleApp"
+	files "light_casters_spot_soft.cpp"
+
