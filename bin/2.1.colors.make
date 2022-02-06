@@ -13,8 +13,8 @@ endif
 ifeq ($(config),debug)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/2.1.1.colors
-  OBJDIR = obj/Debug/2.1.1.colors
+  TARGET = $(TARGETDIR)/2.1.colors
+  OBJDIR = obj/Debug/2.1.colors
   DEFINES += -DDEBUG
   INCLUDES += -I../inc
   FORCE_INCLUDE +=
@@ -40,8 +40,8 @@ endif
 ifeq ($(config),release)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/2.1.1.colors
-  OBJDIR = obj/Release/2.1.1.colors
+  TARGET = $(TARGETDIR)/2.1.colors
+  OBJDIR = obj/Release/2.1.colors
   DEFINES += -DNDEBUG
   INCLUDES += -I../inc
   FORCE_INCLUDE +=
@@ -77,7 +77,7 @@ ifeq (.exe,$(findstring .exe,$(ComSpec)))
 endif
 
 $(TARGET): $(GCH) ${CUSTOMFILES} $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
-	@echo Linking 2.1.1.colors
+	@echo Linking 2.1.colors
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
 
@@ -100,7 +100,7 @@ else
 endif
 
 clean:
-	@echo Cleaning 2.1.1.colors
+	@echo Cleaning 2.1.colors
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
 	$(SILENT) rm -rf $(OBJDIR)
