@@ -1,8 +1,6 @@
 #ifndef MODEL_H
 #define MODEL_H
 
-#include <glad/glad.h> 
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb_image.h>
@@ -39,7 +37,7 @@ public:
     }
 
     // draws the model, and thus all its meshes
-    void Draw(Shader &shader)
+    void Draw(GLuint shader)
     {
         for(unsigned int i = 0; i < meshes.size(); i++)
             meshes[i].Draw(shader);
