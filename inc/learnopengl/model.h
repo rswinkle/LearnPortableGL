@@ -3,13 +3,12 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <stb_image.h>
+//#include <stb_image.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
 #include <learnopengl/mesh.h>
-#include <learnopengl/shader.h>
 
 #include <string>
 #include <fstream>
@@ -37,10 +36,10 @@ public:
     }
 
     // draws the model, and thus all its meshes
-    void Draw(GLuint shader)
+    void Draw(GLuint shader, Model_Uniforms* uniforms) 
     {
         for(unsigned int i = 0; i < meshes.size(); i++)
-            meshes[i].Draw(shader);
+            meshes[i].Draw(shader, uniforms);
     }
     
 private:
@@ -210,15 +209,15 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
     glGenTextures(1, &textureID);
 
     int width, height, nrComponents;
-    unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+    unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, STBI_rgb_alpha);
     if (data)
     {
         GLenum format;
-        if (nrComponents == 1)
-            format = GL_RED;
-        else if (nrComponents == 3)
-            format = GL_RGB;
-        else if (nrComponents == 4)
+        //if (nrComponents == 1)
+        //    format = GL_RED;
+        //else if (nrComponents == 3)
+        //    format = GL_RGB;
+        //else if (nrComponents == 4)
             format = GL_RGBA;
 
         glBindTexture(GL_TEXTURE_2D, textureID);

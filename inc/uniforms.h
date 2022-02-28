@@ -1,5 +1,8 @@
+#ifndef UNIFORMS_H
+#define UNIFORMS_H
 
 #include <glm/glm.hpp>
+
 
 struct Material
 {
@@ -78,3 +81,5 @@ struct Model_Uniforms
 	GLuint texture_normal[4];
 	GLuint texture_height[4];
 };
+
+#endif

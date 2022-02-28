@@ -1,3 +1,4 @@
+#define MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -6,6 +7,8 @@
 #include <stb_image.h>
 
 #include <learnopengl/filesystem.h>
+#include <learnopengl/camera.h>
+#include <learnopengl/model.h>
 
 #include <uniforms.h>
 
@@ -14,6 +17,8 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
+using namespace glm;
+
 void setup_context();
 void cleanup();
 bool handle_events();
@@ -21,6 +26,16 @@ bool handle_events();
 // settings
 unsigned int scr_width = 640;
 unsigned int scr_height = 480;
+
+// camera
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+float lastX = scr_width / 2.0f;
+float lastY = scr_height / 2.0f;
+bool firstMouse = true;
+
+// timing
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 #define PIX_FORMAT SDL_PIXELFORMAT_ARGB8888
 
@@ -42,7 +57,7 @@ void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtin
 	mat4 projection = u->projection;
 
 	// TODO just use mvp uniform?
-	builtins->gl_Position = projection * view * model * ((vec4*)vertex_attribs)[0];
+	*(vec4*)&builtins->gl_Position = projection * view * model * ((vec4*)vertex_attribs)[0];
 
 	// TexCoord = aTexCoord;
 	vs_output[0] = ((vec4*)vertex_attribs)[2].x;
@@ -60,114 +75,41 @@ int main()
 {
 	setup_context();
 
+	// tell SDL to capture our mouse
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+
+	// tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+	stbi_set_flip_vertically_on_load(true);
+
+	// configure global opengl state
+	// -----------------------------
+	glEnable(GL_DEPTH_TEST);
+
+
 	// build our shader program
 	// ------------------------
-	GLenum smooth[5] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
-	unsigned int ourShader = pglCreateProgram(texture_vs, texture_fs, 5, smooth, GL_FALSE);
+	GLenum smooth[2] = { SMOOTH, SMOOTH };
+	unsigned int ourShader = pglCreateProgram(texture_vs, texture_fs, 2, smooth, GL_FALSE);
 	glUseProgram(ourShader);
-	My_Uniforms uniforms;
+	Model_Uniforms uniforms;
 	pglSetUniform(&uniforms);
 
-	// set up vertex data (and buffer(s)) and configure vertex attributes
-	// ------------------------------------------------------------------
-	float vertices[] = {
-		// positions          // colors           // texture coords
-		 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
-		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
-		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
-		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left
-	};
-	unsigned int indices[] = {
-		0, 1, 3, // first triangle
-		1, 2, 3  // second triangle
-	};
-	unsigned int VBO, VAO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
+	// load models
+	// -----------
+	Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
 
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
-	glEnableVertexAttribArray(0);
-	// color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 3 * sizeof(float));
-	glEnableVertexAttribArray(1);
-	// texture coord attribute
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 6 * sizeof(float));
-	glEnableVertexAttribArray(2);
-
-
-	// load and create a texture
-	// -------------------------
-	unsigned int texture1, texture2;
-	// texture 1
-	// ---------
-	glGenTextures(1, &texture1);
-	glBindTexture(GL_TEXTURE_2D, texture1);
-	 // set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// set texture filtering parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// load image, create texture and generate mipmaps
-	int width, height, nrChannels;
-	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-	//
-	// NOTE: PGL currently only supports 32-bit RGBA, so always requset that of stbi_load
-	unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
-	if (data)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
-	// texture 2
-	// ---------
-	glGenTextures(1, &texture2);
-	glBindTexture(GL_TEXTURE_2D, texture2);
-	// set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// set texture filtering parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// load image, create texture and generate mipmaps
-	data = stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
-	if (data)
-	{
-		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
-
-	// set uniforms (uses handles, not "Active Unit")
-	uniforms.tex1 = texture1;
-	uniforms.tex2 = texture2;
 
 
 	// render loop
 	// -----------
 	while (true)
 	{
+		// per-frame time logic
+		// --------------------
+		int currentFrame = SDL_GetTicks();
+		deltaTime = (currentFrame - lastFrame)/1000.0f;
+		lastFrame = currentFrame;
+
 		// input
 		// -----
 		if (handle_events())
@@ -175,15 +117,18 @@ int main()
 
 		// render
 		// ------
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// render container
-		//
-		// shader already active
-		//glUseProgram(ourShader);
-		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		// view/projection transformations
+		uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
+		uniforms.view = camera.GetViewMatrix();
+
+		// render the loaded model
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+		uniforms.model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		ourModel.Draw(ourShader, &uniforms);
 
 		// SDL2: Update SDL_Texture to latest rendered frame, then blit to screen
 		// ----------------------------------------------------------------------
@@ -194,9 +139,6 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
 	glDeleteProgram(ourShader);
 
 	cleanup();
@@ -218,10 +160,29 @@ bool handle_events()
 		case SDL_KEYDOWN:
 			sc = event.key.keysym.scancode;
 			
-			if (sc == SDL_SCANCODE_ESCAPE) {
+			switch (sc) {
+			case SDL_SCANCODE_ESCAPE:
 				return true;
+
+			/*
+			case SDL_SCANCODE_W:
+				camera.ProcessKeyboard(FORWARD, deltaTime);
+				break;
+			case SDL_SCANCODE_S:
+				camera.ProcessKeyboard(BACKWARD, deltaTime);
+				break;
+			case SDL_SCANCODE_A:
+				camera.ProcessKeyboard(LEFT, deltaTime);
+				break;
+			case SDL_SCANCODE_D:
+				camera.ProcessKeyboard(RIGHT, deltaTime);
+				break;
+				*/
+			default:
+				;
 			}
-			break;
+
+			break; //sdl_keydown
 
 		case SDL_WINDOWEVENT:
 			switch (event.window.event) {
@@ -230,14 +191,39 @@ bool handle_events()
 				scr_height = event.window.data2;
 
 				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
-
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
-				tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
+				tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 				break;
 			}
 			break;
+
+		case SDL_MOUSEMOTION:
+		{
+			float dx = event.motion.xrel;
+			float dy = -event.motion.yrel; // reversed since y coordinates go from bottom to top
+			camera.ProcessMouseMovement(dx, dy);
+		} break;
+
+		case SDL_MOUSEWHEEL:
+			camera.ProcessMouseScroll(event.wheel.y);
+			break;
 		}
+	}
+
+	const Uint8 *state = SDL_GetKeyboardState(NULL);
+	
+	if (state[SDL_SCANCODE_W]) {
+		camera.ProcessKeyboard(FORWARD, deltaTime);
+	}
+	if (state[SDL_SCANCODE_S]) {
+		camera.ProcessKeyboard(BACKWARD, deltaTime);
+	}
+	if (state[SDL_SCANCODE_A]) {
+		camera.ProcessKeyboard(LEFT, deltaTime);
+	}
+	if (state[SDL_SCANCODE_D]) {
+		camera.ProcessKeyboard(RIGHT, deltaTime);
 	}
 
 	return false;

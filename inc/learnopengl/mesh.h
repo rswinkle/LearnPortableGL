@@ -1,12 +1,10 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include <glad/glad.h> // holds all OpenGL type declarations
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <learnopengl/shader.h>
+#include <uniforms.h>
 
 #include <string>
 #include <vector>
@@ -57,32 +55,36 @@ public:
     }
 
     // render the mesh
-    void Draw(GLuint shader) 
+    void Draw(GLuint shader, Model_Uniforms* uniforms) 
     {
         // bind appropriate textures
-        unsigned int diffuseNr  = 1;
-        unsigned int specularNr = 1;
-        unsigned int normalNr   = 1;
-        unsigned int heightNr   = 1;
+        unsigned int diffuseNr  = 0;
+        unsigned int specularNr = 0;
+        unsigned int normalNr   = 0;
+        unsigned int heightNr   = 0;
         for(unsigned int i = 0; i < textures.size(); i++)
         {
-            glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
+            //glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
+
             // retrieve texture number (the N in diffuse_textureN)
             string number;
             string name = textures[i].type;
             if(name == "texture_diffuse")
-                number = std::to_string(diffuseNr++);
+            	uniforms->texture_diffuse[diffuseNr++] = textures[i].id;
             else if(name == "texture_specular")
-                number = std::to_string(specularNr++); // transfer unsigned int to stream
+            	uniforms->texture_specular[specularNr++] = textures[i].id;
             else if(name == "texture_normal")
-                number = std::to_string(normalNr++); // transfer unsigned int to stream
+            	uniforms->texture_normal[normalNr++] = textures[i].id;
              else if(name == "texture_height")
-                number = std::to_string(heightNr++); // transfer unsigned int to stream
+            	uniforms->texture_height[heightNr++] = textures[i].id;
 
-            // now set the sampler to the correct texture unit
-            glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);
+			// TODO(rswinkle) I'm not sure this is actually necessary...
+			// since I think it's only here to tie it ACTIVE TEXTURE unit
+			// which I commented above because PGL doesn't have the
+			// concept of Texture Units
+			
             // and finally bind the texture
-            glBindTexture(GL_TEXTURE_2D, textures[i].id);
+            //glBindTexture(GL_TEXTURE_2D, textures[i].id);
         }
         
         // draw mesh
@@ -91,7 +93,7 @@ public:
         glBindVertexArray(0);
 
         // always good practice to set everything back to defaults once configured.
-        glActiveTexture(GL_TEXTURE0);
+        //glActiveTexture(GL_TEXTURE0);
     }
 
 private:
@@ -120,27 +122,33 @@ private:
         // set the vertex attribute pointers
         // vertex Positions
         glEnableVertexAttribArray(0);	
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
         // vertex normals
         glEnableVertexAttribArray(1);	
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Normal));
         // vertex texture coords
         glEnableVertexAttribArray(2);	
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, TexCoords));
+
+		/*
         // vertex tangent
         glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Tangent));
         // vertex bitangent
         glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Bitangent));
+
 		// ids
-		glEnableVertexAttribArray(5);
-		glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
+		//glEnableVertexAttribArray(5);
+		// TODO is there any reason to use IPointer or LPointer?  Well PGL doesn't support anything put float
+		// attributes anyway right now so...
+		//glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), offsetof(Vertex, m_BoneIDs));
 
 		// weights
 		glEnableVertexAttribArray(6);
-		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
+		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, m_Weights));
         glBindVertexArray(0);
+        */
     }
 };
 #endif
