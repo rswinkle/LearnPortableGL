@@ -9,7 +9,7 @@ workspace "LearnPortableGL"
 	includedirs { "inc" }
 
 	--configuration "gmake"
-	--	buildoptions { "-fno-rtti", "-fno-exceptions", "-Wall" }
+	--buildoptions { "-fno-rtti", "-fno-exceptions", "-Wall" }
 
 	configuration "Debug"
 		defines { "DEBUG" }
@@ -30,3 +30,4 @@ workspace "LearnPortableGL"
 	include "src/1.getting_started"
 	include "src/2.lighting"
 	include "src/3.model_loading"
+	include "src/4.advanced_opengl"
