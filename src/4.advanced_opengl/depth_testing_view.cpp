@@ -34,8 +34,8 @@ void cleanup();
 bool handle_events();
 unsigned int loadTexture(const char *path);
 
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
-void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
+void depthview_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void depthview_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
 // settings
@@ -71,12 +71,12 @@ int main()
 	// configure global opengl state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_ALWAYS); // always pass the depth test (same effect as glDisable(GL_DEPTH_TEST))
+	glDepthFunc(GL_LESS);
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
 	GLenum smooth[] = { SMOOTH, SMOOTH };
-	GLuint shader = pglCreateProgram(texture_vs, texture_fs, 2, smooth, GL_FALSE);
+	GLuint shader = pglCreateProgram(depthview_vs, depthview_fs, 2, smooth, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
 
@@ -351,7 +351,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void depthview_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -360,20 +360,24 @@ void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtin
 	mat4 projection = u->projection;
 
 	vec4 aPos = ((vec4*)vertex_attribs)[0];
-	vec2 aTexCoords = vec2(((vec4*)vertex_attribs)[1]);
-
-	// Texcoords = aTexCoord
-	*(vec2*)&vs_output[0] = aTexCoords;
 
 	*(vec4*)&builtins->gl_Position = projection * view * model * aPos;
 }
 
-void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
+float near = 0.1f;
+float far = 100.0f;
+inline float LinearizeDepth(float depth)
 {
-	My_Uniforms* u = (My_Uniforms*)uniforms;
-	vec2 TexCoords = *(vec2*)&fs_input[0];
+	float z = depth * 2.0f - 1.0f; // back to NDC
+	return (2.0f * near * far) / (far + near - z * (far - near));
+}
 
-	builtins->gl_FragColor = texture2D(u->tex, TexCoords.x, TexCoords.y);
+void depthview_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
+{
+	// could also use builtins->gl_FragDepth
+	float depth = LinearizeDepth(builtins->gl_FragCoord.z) / far; //divide by far to get depth in range [0,1] for visualization purposes
+
+	*(vec4*)&builtins->gl_FragColor = vec4(depth, depth, depth, 1.0f);
 }
 
 
@@ -429,6 +433,7 @@ unsigned int loadTexture(char const * path)
 
 	return textureID;
 }
+
 
 
 
