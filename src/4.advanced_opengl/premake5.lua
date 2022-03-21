@@ -10,3 +10,7 @@ project "4.1.2.depth_testing_view"
 project "4.2.stencil_testing"
 	kind "ConsoleApp"
 	files "stencil_testing.cpp"
+
+project "4.3.1.blending_discard"
+	kind "ConsoleApp"
+	files "blending_discard.cpp"
