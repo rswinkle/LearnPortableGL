@@ -14,3 +14,7 @@ project "4.2.stencil_testing"
 project "4.3.1.blending_discard"
 	kind "ConsoleApp"
 	files "blending_discard.cpp"
+
+project "4.3.2.blending_sorted"
+	kind "ConsoleApp"
+	files "blending_sorted.cpp"
