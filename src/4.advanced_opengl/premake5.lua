@@ -18,3 +18,8 @@ project "4.3.1.blending_discard"
 project "4.3.2.blending_sorted"
 	kind "ConsoleApp"
 	files "blending_sorted.cpp"
+
+
+project "4.6.1.cubemaps_skybox"
+	kind "ConsoleApp"
+	files "cubemaps_skybox.cpp"
