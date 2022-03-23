@@ -23,3 +23,7 @@ project "4.3.2.blending_sorted"
 project "4.6.1.cubemaps_skybox"
 	kind "ConsoleApp"
 	files "cubemaps_skybox.cpp"
+
+project "4.6.2.cubemaps_environment_mapping"
+	kind "ConsoleApp"
+	files "cubemaps_environment_mapping.cpp"
