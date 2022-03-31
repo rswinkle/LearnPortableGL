@@ -27,3 +27,7 @@ project "4.6.1.cubemaps_skybox"
 project "4.6.2.cubemaps_environment_mapping"
 	kind "ConsoleApp"
 	files "cubemaps_environment_mapping.cpp"
+
+project "5.1.framebuffers"
+	kind "ConsoleApp"
+	files "framebuffers.cpp"

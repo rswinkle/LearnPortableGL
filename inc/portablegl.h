@@ -1,6 +1,6 @@
 /*
 
-PortableGL 0.93 MIT licensed software renderer that closely mirrors OpenGL 3.x
+PortableGL 0.94 MIT licensed software renderer that closely mirrors OpenGL 3.x
 portablegl.com
 robertwinkler.com
 
@@ -45,8 +45,9 @@ QUICK NOTES:
     MIN_FILTER for a texture.
 
     8-bit per channel RGBA is the only supported format for the framebuffer
-    You can specify the order using the masks in init_glContext. Technically it'd be relatively
-    trivial to add support for other formats but for now we use a u32* to access the buffer.
+    You can specify the order using the masks in init_glContext. Technically
+    it'd be relatively trivial to add support for other formats but for now
+    we use a u32* to access the buffer.
 
 Any PortableGL program has roughly this structure, with some things
 possibly declared globally or passed around in function parameters
@@ -55,7 +56,7 @@ as needed:
     #define WIDTH 640
     #define HEIGHT 480
 
-    // shaders are functions matching thise prototypes
+    // shaders are functions matching these prototypes
     void smooth_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
     void smooth_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
@@ -81,7 +82,7 @@ as needed:
     // gl_FragDepth or discard, but it's not currently used.  In the future I may
     // have a macro that enables early depth testing *if* that parameter is
     // false for a minor performance boost but canonicaly depth test happens
-    // after frag shader (and scissoring)
+    // after the frag shader (and scissoring)
     GLenum interpolation[4] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH };
     GLuint myshader = pglCreateProgram(smooth_vs, smooth_fs, 4, interpolation, GL_FALSE);
     glUseProgram(myshader);
@@ -158,7 +159,7 @@ isn't used since they're not currently supported anyway.
 
 
 MIT License
-Copyright (c) 2011-2021 Robert Winkler
+Copyright (c) 2011-2022 Robert Winkler
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 documentation files (the "Software"), to deal in the Software without restriction, including without limitation
@@ -262,7 +263,7 @@ extern "C" {
 #define MIN(a, b)  ((a) < (b)) ? (a) : (b)
 #endif
 
-#define MAP(X, A, B, C, D) (X-A)/(B-A) * (D-C) + C
+#define MAP(X, A, B, C, D) ((X)-(A))/((B)-(A)) * ((D)-(C)) + (C)
 
 typedef uint8_t  u8;
 typedef uint16_t u16;
@@ -273,10 +274,15 @@ typedef int16_t  i16;
 typedef int32_t  i32;
 typedef int64_t  i64;
 
-
-inline float rsw_rand_float(float min, float max)
+// returns float [0,1)
+inline float rsw_randf()
 {
-	return (rand()/((float)RAND_MAX-1))*(max-min) + min;
+	return rand() / (RAND_MAX + 1.0f);
+}
+
+inline float rsw_randf_range(float min, float max)
+{
+	return min + (max-min) * rsw_randf();
 }
 
 typedef struct vec2
@@ -4340,9 +4346,33 @@ void glUseProgram(GLuint program);
 void pglSetUniform(void* uniform);
 
 
+
 // Stubs to let real OpenGL libs compile with minimal modifications/ifdefs
 // add what you need
+
 void glGenerateMipmap(GLenum target);
+
+void glGetDoublev(GLenum pname, GLdouble* params);
+void glGetInteger64v(GLenum pname, GLint64* params);
+
+// Framebuffers/Renderbuffers
+void glGenFramebuffers(GLsizei n, GLuint* ids);
+void glBindFramebuffer(GLenum target, GLuint framebuffer);
+void glDeleteFramebuffers(GLsizei n, GLuint* framebuffers);
+void glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level);
+void glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+void glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer);
+GLboolean glIsFramebuffer(GLuint framebuffer);
+
+void glGenRenderbuffers(GLsizei n, GLuint* renderbuffers);
+void glBindRenderbuffer(GLenum target, GLuint renderbuffer);
+void glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers);
+void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+GLboolean glIsRenderbuffer(GLuint renderbuffer);
+
+void glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
+GLenum glCheckFramebufferStatus(GLenum target);
 
 
 void glGetProgramiv(GLuint program, GLenum pname, GLint* params);
@@ -4456,7 +4486,8 @@ void put_triangle(Color c1, Color c2, Color c3, vec2 p1, vec2 p2, vec2 p3);
 
 
 
-extern inline float rsw_rand_float(float min, float max);
+extern inline float rsw_randf();
+extern inline float rsw_randf_range(float min, float max);
 extern inline vec2 make_vec2(float x, float y);
 extern inline vec3 make_vec3(float x, float y, float z);
 extern inline vec4 make_vec4(float x, float y, float z, float w);
@@ -7297,8 +7328,8 @@ void cvec_free_float(void* vec)
 static glContext* c;
 
 static Color blend_pixel(vec4 src, vec4 dst);
-static void draw_pixel_vec2(vec4 cf, vec2 pos);
-static void draw_pixel(vec4 cf, int x, int y);
+static void draw_pixel_vec2(vec4 cf, vec2 pos, float z);
+static void draw_pixel(vec4 cf, int x, int y, float z);
 static void run_pipeline(GLenum mode, GLint first, GLsizei count, GLsizei instance, GLuint base_instance, GLboolean use_elements);
 
 static void draw_triangle_clip(glVertex* v0, glVertex* v1, glVertex* v2, unsigned int provoke, int clip_bit);
@@ -7512,7 +7543,7 @@ static void draw_point(glVertex* vert)
 			c->builtins.gl_FragDepth = point.z;
 			c->programs.a[c->cur_program].fragment_shader(fs_input, &c->builtins, c->programs.a[c->cur_program].uniform);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, j, i);
+				draw_pixel(c->builtins.gl_FragColor, j, i, c->builtins.gl_FragDepth);
 		}
 	}
 }
@@ -7835,7 +7866,7 @@ static void draw_line_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_out, uns
 			setup_fs_input(t, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, y);
+				draw_pixel(c->builtins.gl_FragColor, x, y, c->builtins.gl_FragDepth);
 
 line_1:
 			if (line_func(&line, x+0.5f, y-1) < 0) //A*(x+0.5f) + B*(y-1) + C < 0)
@@ -7857,7 +7888,7 @@ line_1:
 			setup_fs_input(t, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, y);
+				draw_pixel(c->builtins.gl_FragColor, x, y, c->builtins.gl_FragDepth);
 
 line_2:
 			if (line_func(&line, x+1, y-0.5f) > 0) //A*(x+1) + B*(y-0.5f) + C > 0)
@@ -7879,7 +7910,7 @@ line_2:
 			setup_fs_input(t, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, y);
+				draw_pixel(c->builtins.gl_FragColor, x, y, c->builtins.gl_FragDepth);
 
 line_3:
 			if (line_func(&line, x+1, y+0.5f) < 0) //A*(x+1) + B*(y+0.5f) + C < 0)
@@ -7902,7 +7933,7 @@ line_3:
 			setup_fs_input(t, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, y);
+				draw_pixel(c->builtins.gl_FragColor, x, y, c->builtins.gl_FragDepth);
 
 line_4:
 			if (line_func(&line, x+0.5f, y+1) > 0) //A*(x+0.5f) + B*(y+1) + C > 0)
@@ -7992,14 +8023,14 @@ static void draw_line_smooth_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_o
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = (1.0 - modff(yend, &tmp)) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, ypxl1, xpxl1);
+				draw_pixel(c->builtins.gl_FragColor, ypxl1, xpxl1, c->builtins.gl_FragDepth);
 
 			SET_VEC4(c->builtins.gl_FragCoord, ypxl1+1, xpxl1, z1, 1/w1);
 			setup_fs_input(0, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = modff(yend, &tmp) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, ypxl1+1, xpxl1);
+				draw_pixel(c->builtins.gl_FragColor, ypxl1+1, xpxl1, c->builtins.gl_FragDepth);
 		}
 	} else {
 		if (!c->depth_test || (!fragdepth_or_discard &&
@@ -8015,14 +8046,14 @@ static void draw_line_smooth_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_o
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = (1.0 - modff(yend, &tmp)) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, xpxl1, ypxl1);
+				draw_pixel(c->builtins.gl_FragColor, xpxl1, ypxl1, c->builtins.gl_FragDepth);
 
 			SET_VEC4(c->builtins.gl_FragCoord, xpxl1, ypxl1+1, z1, 1/w1);
 			setup_fs_input(0, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = modff(yend, &tmp) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, xpxl1, ypxl1+1);
+				draw_pixel(c->builtins.gl_FragColor, xpxl1, ypxl1+1, c->builtins.gl_FragDepth);
 		}
 	}
 
@@ -8053,14 +8084,14 @@ static void draw_line_smooth_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_o
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = (1.0 - modff(yend, &tmp)) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, ypxl2, xpxl2);
+				draw_pixel(c->builtins.gl_FragColor, ypxl2, xpxl2, c->builtins.gl_FragDepth);
 
 			SET_VEC4(c->builtins.gl_FragCoord, ypxl2+1, xpxl2, z2, 1/w2);
 			setup_fs_input(1, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = modff(yend, &tmp) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, ypxl2+1, xpxl2);
+				draw_pixel(c->builtins.gl_FragColor, ypxl2+1, xpxl2, c->builtins.gl_FragDepth);
 		}
 
 	} else {
@@ -8077,14 +8108,14 @@ static void draw_line_smooth_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_o
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = (1.0 - modff(yend, &tmp)) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, xpxl2, ypxl2);
+				draw_pixel(c->builtins.gl_FragColor, xpxl2, ypxl2, c->builtins.gl_FragDepth);
 
 			SET_VEC4(c->builtins.gl_FragCoord, xpxl2, ypxl2+1, z2, 1/w2);
 			setup_fs_input(1, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = modff(yend, &tmp) * xgap;
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, xpxl2, ypxl2+1);
+				draw_pixel(c->builtins.gl_FragColor, xpxl2, ypxl2+1, c->builtins.gl_FragDepth);
 		}
 	}
 
@@ -8113,14 +8144,14 @@ static void draw_line_smooth_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_o
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = 1.0 - modff(intery, &tmp);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, intery, x);
+				draw_pixel(c->builtins.gl_FragColor, intery, x, c->builtins.gl_FragDepth);
 
 			SET_VEC4(c->builtins.gl_FragCoord, intery+1, x, z, 1/w);
 			setup_fs_input(t, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = modff(intery, &tmp);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, intery+1, x);
+				draw_pixel(c->builtins.gl_FragColor, intery+1, x, c->builtins.gl_FragDepth);
 
 		} else {
 			if (!c->fragdepth_or_discard && c->depth_test) {
@@ -8137,14 +8168,14 @@ static void draw_line_smooth_shader(vec4 v1, vec4 v2, float* v1_out, float* v2_o
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = 1.0 - modff(intery, &tmp);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, intery);
+				draw_pixel(c->builtins.gl_FragColor, x, intery, c->builtins.gl_FragDepth);
 
 			SET_VEC4(c->builtins.gl_FragCoord, x, intery+1, z, 1/w);
 			setup_fs_input(t, v1_out, v2_out, w1, w2, provoke);
 			fragment_shader(c->fs_input, &c->builtins, uniform);
 			//fragcolor.w = modff(intery, &tmp);
 			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, intery+1);
+				draw_pixel(c->builtins.gl_FragColor, x, intery+1, c->builtins.gl_FragDepth);
 
 		}
 	}
@@ -8387,9 +8418,10 @@ static void draw_triangle_point(glVertex* v0, glVertex* v1,  glVertex* v2, unsig
 		}
 
 		c->builtins.discard = GL_FALSE;
+		c->builtins.gl_FragDepth = point.z;
 		c->programs.a[c->cur_program].fragment_shader(fs_input, &c->builtins, c->programs.a[c->cur_program].uniform);
 		if (!c->builtins.discard)
-			draw_pixel(c->builtins.gl_FragColor, point.x, point.y);
+			draw_pixel(c->builtins.gl_FragColor, point.x, point.y, c->builtins.gl_FragDepth);
 	}
 }
 
@@ -8459,6 +8491,8 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 	y_min = MIN(hp2.y, y_min);
 	y_max = MAX(hp2.y, y_max);
 
+	int ix_max = roundf(x_max);
+	int iy_max = roundf(y_max);
 
 
 	/*
@@ -8493,13 +8527,20 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 	float inv_w1 = 1/p1.w;
 	float inv_w2 = 1/p2.w;
 
-	float x;
-	float y = floor(y_min) + 0.5; //center of min pixel
+	float x, y;
 
-	for (; y<=y_max; ++y) {
-		x = floor(x_min) + 0.5; //center of min pixel
+	// TODO: Should I just use the glContext member like everywhere else so
+	// I don't have to copy gl_InstanceID over?
+	Shader_Builtins builtins;
+	builtins.gl_InstanceID = c->builtins.gl_InstanceID;
 
-		for (; x<=x_max; ++x) {
+	#pragma omp parallel for private(x, y, alpha, beta, gamma, z, tmp, tmp2, builtins, fs_input)
+	for (int iy = y_min; iy<iy_max; ++iy) {
+		y = iy + 0.5f;
+
+		for (int ix = x_min; ix<ix_max; ++ix) {
+			x = ix + 0.5f; //center of min pixel
+
 			//see page 117 of glspec for alternative method
 			gamma = line_func(&l01, x, y)/line_func(&l01, hp2.x, hp2.y);
 			beta = line_func(&l20, x, y)/line_func(&l20, hp1.x, hp1.y);
@@ -8536,13 +8577,13 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 					}
 
 					// tmp2 is 1/w interpolated... I now do that everywhere (draw_line, draw_point)
-					SET_VEC4(c->builtins.gl_FragCoord, x, y, z, tmp2);
-					c->builtins.discard = GL_FALSE;
-					c->builtins.gl_FragDepth = z;
-					c->programs.a[c->cur_program].fragment_shader(fs_input, &c->builtins, c->programs.a[c->cur_program].uniform);
-					if (!c->builtins.discard) {
+					SET_VEC4(builtins.gl_FragCoord, x, y, z, tmp2);
+					builtins.discard = GL_FALSE;
+					builtins.gl_FragDepth = z;
+					c->programs.a[c->cur_program].fragment_shader(fs_input, &builtins, c->programs.a[c->cur_program].uniform);
+					if (!builtins.discard) {
 
-						draw_pixel(c->builtins.gl_FragColor, x, y);
+						draw_pixel(builtins.gl_FragColor, x, y, builtins.gl_FragDepth);
 					}
 				}
 			}
@@ -8752,7 +8793,7 @@ static void stencil_op(int stencil, int depth, u8* dest)
 
 }
 
-static void draw_pixel_vec2(vec4 cf, vec2 pos)
+static void draw_pixel_vec2(vec4 cf, vec2 pos, float z)
 {
 /*
  * spec pg 110:
@@ -8767,11 +8808,11 @@ than full, see make_viewport_matrix
 TODO point size > 1
 */
 
-	draw_pixel(cf, pos.x, pos.y);
+	draw_pixel(cf, pos.x, pos.y, z);
 }
 
 
-static void draw_pixel(vec4 cf, int x, int y)
+static void draw_pixel(vec4 cf, int x, int y, float z)
 {
 	if (c->scissor_test) {
 		if (x < c->scissor_lx || y < c->scissor_ly || x >= c->scissor_ux || y >= c->scissor_uy) {
@@ -8797,7 +8838,7 @@ static void draw_pixel(vec4 cf, int x, int y)
 		// I made gl_FragDepth read/write, ie same == to gl_FragCoord.z going into the shader
 		// so I can just always use gl_FragDepth here
 		float dest_depth = ((float*)c->zbuf.lastrow)[-y*c->zbuf.w + x];
-		float src_depth = c->builtins.gl_FragDepth;  // pass as parameter?
+		float src_depth = z;  //c->builtins.gl_FragDepth;  // pass as parameter?
 
 		int depth_result = depthtest(src_depth, dest_depth);
 
@@ -8840,7 +8881,7 @@ static void draw_pixel(vec4 cf, int x, int y)
 
 	//((u32*)c->back_buffer.buf)[(buf.h-1-y)*buf.w + x] = c.a << 24 | c.c << 16 | c.g << 8 | c.b;
 	//((u32*)c->back_buffer.lastrow)[-y*c->back_buffer.w + x] = c.a << 24 | c.c << 16 | c.g << 8 | c.b;
-	*dest = src_color.a << c->Ashift | src_color.r << c->Rshift | src_color.g << c->Gshift | src_color.b << c->Bshift;
+	*dest = (u32)src_color.a << c->Ashift | (u32)src_color.r << c->Rshift | (u32)src_color.g << c->Gshift | (u32)src_color.b << c->Bshift;
 }
 
 
@@ -9566,22 +9607,6 @@ void glPixelStorei(GLenum pname, GLint param)
 
 }
 
-void glGenerateMipmap(GLenum target)
-{
-	if (target != GL_TEXTURE_1D && target != GL_TEXTURE_2D && target != GL_TEXTURE_3D && target != GL_TEXTURE_CUBE_MAP) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//TODO not implemented, not sure it's worth it.  This stub is just to
-	//make porting real OpenGL programs easier.
-	//For example mipmap generation code see
-	//https://github.com/thebeast33/cro_lib/blob/master/cro_mipmap.h
-}
-
-
-
 void glTexImage1D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid* data)
 {
 	if (target != GL_TEXTURE_1D) {
@@ -10285,12 +10310,12 @@ void glClear(GLbitfield mask)
 	if (mask & GL_COLOR_BUFFER_BIT) {
 		if (!c->scissor_test) {
 			for (int i=0; i<c->back_buffer.w*c->back_buffer.h; ++i) {
-				((u32*)c->back_buffer.buf)[i] = col.a << c->Ashift | col.r << c->Rshift | col.g << c->Gshift | col.b << c->Bshift;
+				((u32*)c->back_buffer.buf)[i] = (u32)col.a << c->Ashift | (u32)col.r << c->Rshift | (u32)col.g << c->Gshift | (u32)col.b << c->Bshift;
 			}
 		} else {
 			for (int y=c->scissor_ly; y<c->scissor_uy; ++y) {
 				for (int x=c->scissor_lx; x<c->scissor_ux; ++x) {
-					((u32*)c->back_buffer.lastrow)[-y*c->back_buffer.w + x] = col.a << c->Ashift | col.r << c->Rshift | col.g << c->Gshift | col.b << c->Bshift;
+					((u32*)c->back_buffer.lastrow)[-y*c->back_buffer.w + x] = (u32)col.a << c->Ashift | (u32)col.r << c->Rshift | (u32)col.g << c->Gshift | (u32)col.b << c->Bshift;
 				}
 			}
 		}
@@ -10628,7 +10653,9 @@ GLuint pglCreateProgram(vert_func vertex_shader, frag_func fragment_shader, GLsi
 	}
 
 	glProgram tmp = {vertex_shader, fragment_shader, NULL, n, {0}, fragdepth_or_discard, GL_FALSE };
-	memcpy(tmp.interpolation, interpolation, n*sizeof(GLenum));
+	for (int i=0; i<n; ++i) {
+		tmp.interpolation[i] = interpolation[i];
+	}
 
 	for (int i=1; i<c->programs.size; ++i) {
 		if (c->programs.a[i].deleted && i != c->cur_program) {
@@ -10935,11 +10962,41 @@ void* glMapNamedBuffer(GLuint buffer, GLenum access)
 	return data;
 }
 
+
 // Stubs to let real OpenGL libs compile with minimal modifications/ifdefs
 // add what you need
 
+void glGenerateMipmap(GLenum target)
+{
+	//TODO not implemented, not sure it's worth it.
+	//For example mipmap generation code see
+	//https://github.com/thebeast33/cro_lib/blob/master/cro_mipmap.h
+}
+
 void glGetDoublev(GLenum pname, GLdouble* params) { }
 void glGetInteger64v(GLenum pname, GLint64* params) { }
+
+// Framebuffers/Renderbuffers
+void glGenFramebuffers(GLsizei n, GLuint* ids) {}
+void glBindFramebuffer(GLenum target, GLuint framebuffer) {}
+void glDeleteFramebuffers(GLsizei n, GLuint* framebuffers) {}
+void glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level) {}
+void glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) {}
+void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) {}
+void glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) {}
+GLboolean glIsFramebuffer(GLuint framebuffer) { return GL_FALSE; }
+
+void glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {}
+void glBindRenderbuffer(GLenum target, GLuint renderbuffer) {}
+void glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {}
+void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height) {}
+GLboolean glIsRenderbuffer(GLuint renderbuffer) { return GL_FALSE; }
+
+void glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) {}
+// Could also return GL_FRAMEBUFFER_UNDEFINED, but then I'd have to add all
+// those enums and really 0 signaling an error makes more sense
+GLenum glCheckFramebufferStatus(GLenum target) { return 0; }
+
 
 
 void glGetProgramiv(GLuint program, GLenum pname, GLint* params) { }
@@ -11572,17 +11629,19 @@ void pglDrawFrame()
 {
 	frag_func frag_shader = c->programs.a[c->cur_program].fragment_shader;
 
-	for (float y=0.5; y<c->back_buffer.h; ++y) {
-		for (float x=0.5; x<c->back_buffer.w; ++x) {
+	Shader_Builtins builtins;
+	#pragma omp parallel for private(builtins)
+	for (int y=0; y<c->back_buffer.h; ++y) {
+		for (int x=0; x<c->back_buffer.w; ++x) {
 
 			//ignore z and w components
-			c->builtins.gl_FragCoord.x = x;
-			c->builtins.gl_FragCoord.y = y;
+			builtins.gl_FragCoord.x = x + 0.5f;
+			builtins.gl_FragCoord.y = y + 0.5f;
 
-			c->builtins.discard = GL_FALSE;
-			frag_shader(NULL, &c->builtins, c->programs.a[c->cur_program].uniform);
-			if (!c->builtins.discard)
-				draw_pixel(c->builtins.gl_FragColor, x, y);
+			builtins.discard = GL_FALSE;
+			frag_shader(NULL, &builtins, c->programs.a[c->cur_program].uniform);
+			if (!builtins.discard)
+				draw_pixel(builtins.gl_FragColor, x, y, 0.0f);  //depth isn't used for pglDrawFrame
 		}
 	}
 
