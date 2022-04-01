@@ -31,3 +31,7 @@ project "4.6.2.cubemaps_environment_mapping"
 project "5.1.framebuffers"
 	kind "ConsoleApp"
 	files "framebuffers.cpp"
+
+project "5.2.framebuffers_exercise1"
+	kind "ConsoleApp"
+	files "framebuffers_exercise1.cpp"
