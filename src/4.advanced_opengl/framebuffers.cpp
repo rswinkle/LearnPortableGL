@@ -19,6 +19,20 @@
 
 using namespace glm;
 
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+uint32_t rmask = 0xff000000;
+uint32_t gmask = 0x00ff0000;
+uint32_t bmask = 0x0000ff00;
+uint32_t amask = 0x000000ff;
+#define PIX_FORMAT SDL_PIXELFORMAT_RGBA8888
+#else
+uint32_t rmask = 0x000000ff;
+uint32_t gmask = 0x0000ff00;
+uint32_t bmask = 0x00ff0000;
+uint32_t amask = 0xff000000;
+#define PIX_FORMAT SDL_PIXELFORMAT_ABGR8888
+#endif
+
 
 struct My_Uniforms
 {
@@ -143,15 +157,25 @@ int main()
 		-5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
 		 5.0f, -0.5f, -5.0f,  2.0f, 2.0f
 	};
+
+	// I fixed the texture coordinates because the LearnOpenGL code/tutorial
+	// is wrong. OpenGL does *not* "expect the y texture coordinate 0 to be
+	// the bottom of the image", it just treats the first row of texture data
+	// as y = 0 so if the image is rightside up in memory y = 0 will be the
+	// top, if it's upside down y = 0 will be the bottom (but it could also
+	// be sideways in which case y = 0 is really the left or right side.
+	//
+	// People are so tied to the idea that y increases up that everyone seems
+	// to make this mistake even though it has nothing to do with up/down or top/bottom.
 	float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
 		// positions   // texCoords
-		-1.0f,  1.0f,  0.0f, 1.0f,
-		-1.0f, -1.0f,  0.0f, 0.0f,
-		 1.0f, -1.0f,  1.0f, 0.0f,
+		-1.0f,  1.0f,  0.0f, 0.0f,
+		-1.0f, -1.0f,  0.0f, 1.0f,
+		 1.0f, -1.0f,  1.0f, 1.0f,
 
-		-1.0f,  1.0f,  0.0f, 1.0f,
-		 1.0f, -1.0f,  1.0f, 0.0f,
-		 1.0f,  1.0f,  1.0f, 1.0f
+		-1.0f,  1.0f,  0.0f, 0.0f,
+		 1.0f, -1.0f,  1.0f, 1.0f,
+		 1.0f,  1.0f,  1.0f, 0.0f
 	};
 	// cube VAO
 	unsigned int cubeVAO, cubeVBO;
@@ -258,8 +282,8 @@ int main()
 		// now draw a quad plane with the attached framebuffer color texture
 		glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
 		// clear all relevant buffers
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
-		glClear(GL_COLOR_BUFFER_BIT);
+		//glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
+		//glClear(GL_COLOR_BUFFER_BIT);
 
 		glUseProgram(screenShader);
 		glBindVertexArray(quadVAO);
@@ -320,7 +344,7 @@ bool handle_events()
 				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
-				tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
+				tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 				glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -378,10 +402,10 @@ void setup_context()
 
 	// Create Software Renderer and texture
 	ren = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
+	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 	// Initialize and set PGL context
-	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)) {
+	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, rmask, gmask, bmask, amask)) {
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
@@ -424,6 +448,8 @@ void screen_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins
 	// Texcoords = aTexCoord
 	*(vec2*)&vs_output[0] = aTexCoords;
 
+	//print_vec4(((glinternal_vec4*)vertex_attribs)[0], "\n");
+
 	*(vec4*)&builtins->gl_Position = aPos;
 }
 
@@ -434,6 +460,7 @@ void screen_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	vec2 TexCoords = *(vec2*)&fs_input[0];
 
 	builtins->gl_FragColor = texture2D(u->tex, TexCoords.x, TexCoords.y);
+	//print_vec4(builtins->gl_FragColor
 }
 
 void cleanup()
