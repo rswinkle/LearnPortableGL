@@ -13,8 +13,8 @@ endif
 ifeq ($(config),debug)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/5.2.framebuffers_exercise1
-  OBJDIR = obj/Debug/5.2.framebuffers_exercise1
+  TARGET = $(TARGETDIR)/4.5.1.framebuffers
+  OBJDIR = obj/Debug/4.5.1.framebuffers
   DEFINES += -DDEBUG
   INCLUDES += -I../inc
   FORCE_INCLUDE +=
@@ -40,8 +40,8 @@ endif
 ifeq ($(config),release)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/5.2.framebuffers_exercise1
-  OBJDIR = obj/Release/5.2.framebuffers_exercise1
+  TARGET = $(TARGETDIR)/4.5.1.framebuffers
+  OBJDIR = obj/Release/4.5.1.framebuffers
   DEFINES += -DNDEBUG
   INCLUDES += -I../inc
   FORCE_INCLUDE +=
@@ -65,7 +65,7 @@ all: prebuild prelink $(TARGET)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/framebuffers_exercise1.o \
+	$(OBJDIR)/framebuffers.o \
 
 RESOURCES := \
 
@@ -77,7 +77,7 @@ ifeq (.exe,$(findstring .exe,$(ComSpec)))
 endif
 
 $(TARGET): $(GCH) ${CUSTOMFILES} $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
-	@echo Linking 5.2.framebuffers_exercise1
+	@echo Linking 4.5.1.framebuffers
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
 
@@ -100,7 +100,7 @@ else
 endif
 
 clean:
-	@echo Cleaning 5.2.framebuffers_exercise1
+	@echo Cleaning 4.5.1.framebuffers
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
 	$(SILENT) rm -rf $(OBJDIR)
@@ -124,7 +124,7 @@ else
 $(OBJECTS): | $(OBJDIR)
 endif
 
-$(OBJDIR)/framebuffers_exercise1.o: ../src/4.advanced_opengl/framebuffers_exercise1.cpp
+$(OBJDIR)/framebuffers.o: ../src/4.advanced_opengl/framebuffers.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
