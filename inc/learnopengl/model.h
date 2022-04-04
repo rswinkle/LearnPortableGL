@@ -36,7 +36,7 @@ public:
     }
 
     // draws the model, and thus all its meshes
-    void Draw(GLuint shader, Model_Uniforms* uniforms) 
+    void Draw(GLuint shader, Model_Uniforms* uniforms)
     {
         for(unsigned int i = 0; i < meshes.size(); i++)
             meshes[i].Draw(shader, uniforms);

@@ -38,3 +38,9 @@ project "4.6.2.cubemaps_environment_mapping"
 project "4.10.1.instancing_quads"
 	kind "ConsoleApp"
 	files "instancing_quads.cpp"
+
+project "4.10.2.asteroids"
+	kind "ConsoleApp"
+	files "asteroids.cpp"
+	links { "assimp" }
+
