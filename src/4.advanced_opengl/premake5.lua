@@ -35,3 +35,6 @@ project "4.6.2.cubemaps_environment_mapping"
 	kind "ConsoleApp"
 	files "cubemaps_environment_mapping.cpp"
 
+project "4.10.1.instancing_quads"
+	kind "ConsoleApp"
+	files "instancing_quads.cpp"
