@@ -44,3 +44,7 @@ project "4.10.2.asteroids"
 	files "asteroids.cpp"
 	links { "assimp" }
 
+project "4.10.3.asteroids_instanced"
+	kind "ConsoleApp"
+	files "asteroids_instanced.cpp"
+	links { "assimp" }

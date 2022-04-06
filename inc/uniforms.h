@@ -75,6 +75,7 @@ struct Model_Uniforms
 	glm::mat4 view;
 	glm::mat4 projection;
 	glm::mat4 mvp;
+	glm::mat4* instance_mats;
 
 	GLuint texture_diffuse[4];
 	GLuint texture_specular[4];
