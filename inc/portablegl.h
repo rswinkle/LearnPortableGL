@@ -1,6 +1,6 @@
 /*
 
-PortableGL 0.94 MIT licensed software renderer that closely mirrors OpenGL 3.x
+PortableGL 0.95 MIT licensed software renderer that closely mirrors OpenGL 3.x
 portablegl.com
 robertwinkler.com
 
@@ -1874,6 +1874,26 @@ enum
 	GL_UNIFORM_BUFFER,
 	GL_NUM_BUFFER_TYPES,
 
+	// Framebuffer stuff (unused/supported yet)
+	GL_FRAMEBUFFER,
+	GL_DRAW_FRAMEBUFFER,
+	GL_READ_FRAMEBUFFER,
+
+	GL_COLOR_ATTACHMENT0,
+	GL_COLOR_ATTACHMENT1,
+	GL_COLOR_ATTACHMENT2,
+	GL_COLOR_ATTACHMENT3,
+	GL_COLOR_ATTACHMENT4,
+	GL_COLOR_ATTACHMENT5,
+	GL_COLOR_ATTACHMENT6,
+	GL_COLOR_ATTACHMENT7,
+
+	GL_DEPTH_ATTACHMENT,
+	GL_STENCIL_ATTACHMENT,
+	GL_DEPTH_STENCIL_ATTACHMENT,
+
+	GL_RENDERBUFFER,
+
 	//buffer use hints (not used currently)
 	GL_STREAM_DRAW,
 	GL_STREAM_READ,
@@ -2000,7 +2020,7 @@ enum
 	GL_LINEAR_MIPMAP_NEAREST,
 	GL_LINEAR_MIPMAP_LINEAR,
 
-	//texture formats
+	//texture/depth/stencil formats
 	GL_RED,
 	GL_RG,
 	GL_RGB,
@@ -2012,6 +2032,21 @@ enum
 	GL_COMPRESSED_RGB,
 	GL_COMPRESSED_RGBA,
 	//lots more go here but not important
+
+	// None of these are used currently just to help porting
+	GL_DEPTH_COMPONENT16,
+	GL_DEPTH_COMPONENT24,
+	GL_DEPTH_COMPONENT32,
+	GL_DEPTH_COMPONENT32F, // PGL uses a float depth buffer
+
+	GL_DEPTH24_STENCIL8,
+	GL_DEPTH32F_STENCIL8,  // <- we do this
+
+	GL_STENCIL_INDEX1,
+	GL_STENCIL_INDEX4,
+	GL_STENCIL_INDEX8,   // this
+	GL_STENCIL_INDEX16,
+
 	
 	//PixelStore parameters
 	GL_UNPACK_ALIGNMENT,
@@ -2169,6 +2204,7 @@ enum
 #define GL_MAX_VERTEX_ATTRIBS 16
 #define GL_MAX_VERTEX_OUTPUT_COMPONENTS 64
 #define GL_MAX_DRAW_BUFFERS 8
+#define GL_MAX_COLOR_ATTACHMENTS 8
 
 //TODO use prefix like GL_SMOOTH?  PGL_SMOOTH?
 enum { SMOOTH, FLAT, NOPERSPECTIVE };
@@ -7435,14 +7471,12 @@ static void do_vertex(glVertex_Attrib* v, int* enabled, unsigned int num_enabled
 static void vertex_stage(GLint first, GLsizei count, GLsizei instance_id, GLuint base_instance, GLboolean use_elements)
 {
 	unsigned int i, j, vert, num_enabled;
-	vec4 tmpvec4;
 	u8* buf_pos;
 
 	//save checking if enabled on every loop if we build this first
 	//also initialize the vertex_attrib space
 	float vec4_init[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	int enabled[GL_MAX_VERTEX_ATTRIBS];
-	memset(enabled, 0, sizeof(int)*GL_MAX_VERTEX_ATTRIBS);
+	int enabled[GL_MAX_VERTEX_ATTRIBS] = { 0 };
 	glVertex_Attrib* v = c->vertex_arrays.a[c->cur_vertex_array].vertex_attribs;
 	GLuint elem_buffer = c->vertex_arrays.a[c->cur_vertex_array].element_buffer;
 
@@ -7452,18 +7486,11 @@ static void vertex_stage(GLint first, GLsizei count, GLsizei instance_id, GLuint
 		if (v[i].enabled) {
 			if (v[i].divisor == 0) {
 				enabled[j++] = i;
-				//printf("%d is enabled\n", i);
 			} else if (!(instance_id % v[i].divisor)) {   //set instanced attributes if necessary
 				int n = instance_id/v[i].divisor + base_instance;
 				buf_pos = (u8*)c->buffers.a[v[i].buf].data + v[i].offset + v[i].stride*n;
 
-				SET_VEC4(tmpvec4, 0.0f, 0.0f, 0.0f, 1.0f);
-
-				memcpy(&tmpvec4, buf_pos, sizeof(float)*v[enabled[j]].size); //TODO why do I have v[enabled[j]].size and not just v[i].size?
-
-				//c->cur_vertex_array->vertex_attribs[enabled[j]].buf->data;
-
-				c->vertex_attribs_vs[i] = tmpvec4;
+				memcpy(&c->vertex_attribs_vs[i], buf_pos, sizeof(float)*v[i].size);
 			}
 		}
 	}
@@ -9235,7 +9262,7 @@ GLubyte* glGetString(GLenum name)
 {
 	static GLubyte vendor[] = "Robert Winkler";
 	static GLubyte renderer[] = "PortableGL";
-	static GLubyte version[] = "OpenGL 3.x-ish PortableGL 0.94";
+	static GLubyte version[] = "OpenGL 3.x-ish PortableGL 0.95";
 	static GLubyte shading_language[] = "C/C++";
 
 	switch (name) {

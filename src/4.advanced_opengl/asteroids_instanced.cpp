@@ -8,6 +8,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
 
 #include <learnopengl/filesystem.h>
 #include <learnopengl/camera.h>
@@ -116,7 +118,6 @@ int main()
 	}
 	uniforms.instance_mats = modelMatrices;
 
-	/*
 	// configure instanced array
 	// -------------------------
 	unsigned int buffer;
@@ -149,7 +150,6 @@ int main()
 
 		glBindVertexArray(0);
 	}
-	*/
 
 	int old_time = 0;
 
@@ -319,9 +319,10 @@ void asteroid_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builti
 
 	vec4 aPos = ((vec4*)vertex_attribs)[0];
 	vec2 aTexCoords = vec2(((vec4*)vertex_attribs)[2]);
-	//mat4 aInstanceMatrix = *(mat4*)&((vec4*)vertex_attribs)[3];
-	
-	mat4 aInstanceMatrix = u->instance_mats[builtins->gl_InstanceID];
+
+	// Far easier to just use uniforms + instanceID but both work
+	mat4 aInstanceMatrix = *(mat4*)&((vec4*)vertex_attribs)[3];
+	//mat4 aInstanceMatrix = u->instance_mats[builtins->gl_InstanceID];
 
 	// Texcoords = aTexCoord
 	//*(vec2*)&vs_output[0] = aTexCoords;
