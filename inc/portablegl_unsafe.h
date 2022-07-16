@@ -9411,53 +9411,25 @@ void glDeleteTextures(GLsizei n, GLuint* textures)
 
 void glBindVertexArray(GLuint array)
 {
-	if (array < c->vertex_arrays.size && c->vertex_arrays.a[array].deleted == GL_FALSE) {
-		c->cur_vertex_array = array;
-	} else if (!c->error) {
-		c->error = GL_INVALID_OPERATION;
-	}
+	c->cur_vertex_array = array;
 }
 
 void glBindBuffer(GLenum target, GLuint buffer)
 {
-//GL_ARRAY_BUFFER, GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
-//GL_PIXEL_PACK_BUFFER, GL_PIXEL_UNPACK_BUFFER, GL_TEXTURE_BUFFER, GL_TRANSFORM_FEEDBACK_BUFFER, or GL_UNIFORM_BUFFER.
-	if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	target -= GL_ARRAY_BUFFER;
-	if (buffer < c->buffers.size && c->buffers.a[buffer].deleted == GL_FALSE) {
-		c->bound_buffers[target] = buffer;
 
-		// Note type isn't set till binding and we're not storing the raw
-		// enum but the enum - GL_ARRAY_BUFFER so it's an index into c->bound_buffers
-		// TODO need to see what's supposed to happen if you try to bind
-		// a buffer to multiple targets
-		c->buffers.a[buffer].type = target;
-	} else if (!c->error) {
-		c->error = GL_INVALID_OPERATION;
-	}
+	c->bound_buffers[target] = buffer;
+
+	// Note type isn't set till binding and we're not storing the raw
+	// enum but the enum - GL_ARRAY_BUFFER so it's an index into c->bound_buffers
+	// TODO need to see what's supposed to happen if you try to bind
+	// a buffer to multiple targets
+	c->buffers.a[buffer].type = target;
 }
 
 void glBufferData(GLenum target, GLsizei size, const GLvoid* data, GLenum usage)
 {
-	if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//check for usage later
-
 	target -= GL_ARRAY_BUFFER;
-	if (c->bound_buffers[target] == 0) {
-		if (!c->error)
-			c->error = GL_INVALID_OPERATION;
-		return;
-	}
 
 	//always NULL or valid
 	free(c->buffers.a[c->bound_buffers[target]].data);
@@ -9483,85 +9455,29 @@ void glBufferData(GLenum target, GLsizei size, const GLvoid* data, GLenum usage)
 
 void glBufferSubData(GLenum target, GLsizei offset, GLsizei size, const GLvoid* data)
 {
-	if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	target -= GL_ARRAY_BUFFER;
-	if (c->bound_buffers[target] == 0) {
-		if (!c->error)
-			c->error = GL_INVALID_OPERATION;
-		return;
-	}
-
-	if (offset + size > c->buffers.a[c->bound_buffers[target]].size) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 
 	memcpy(&c->buffers.a[c->bound_buffers[target]].data[offset], data, size);
 }
 
 void glBindTexture(GLenum target, GLuint texture)
 {
-	if (target < GL_TEXTURE_1D || target >= GL_NUM_TEXTURE_TYPES) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	target -= GL_TEXTURE_UNBOUND + 1;
 
-	if (texture < c->textures.size && !c->textures.a[texture].deleted) {
-		if (c->textures.a[texture].type == GL_TEXTURE_UNBOUND) {
-			c->bound_textures[target] = texture;
-			c->textures.a[texture].type = target;
-		} else if (c->textures.a[texture].type == target) {
-			c->bound_textures[target] = texture;
-		} else if (!c->error) {
-			c->error = GL_INVALID_OPERATION;
-		}
-	} else if (!c->error) {
-		c->error = GL_INVALID_VALUE;
+	if (c->textures.a[texture].type == GL_TEXTURE_UNBOUND) {
+		c->bound_textures[target] = texture;
+		c->textures.a[texture].type = target;
+	} else {
+		c->bound_textures[target] = texture;
 	}
 }
 
 void glTexParameteri(GLenum target, GLenum pname, GLint param)
 {
-	//GL_TEXTURE_1D, GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE, or GL_TEXTURE_CUBE_MAP.
-	//will add others as they're implemented
-	if (target != GL_TEXTURE_1D && target != GL_TEXTURE_2D && target != GL_TEXTURE_3D && target != GL_TEXTURE_2D_ARRAY && target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_CUBE_MAP) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-	
 	//shift to range 0 - NUM_TEXTURES-1 to access bound_textures array
 	target -= GL_TEXTURE_UNBOUND + 1;
 
-
-//GL_TEXTURE_BASE_LEVEL, GL_TEXTURE_COMPARE_FUNC, GL_TEXTURE_COMPARE_MODE, GL_TEXTURE_LOD_BIAS, GL_TEXTURE_MIN_FILTER,
-//GL_TEXTURE_MAG_FILTER, GL_TEXTURE_MIN_LOD, GL_TEXTURE_MAX_LOD, GL_TEXTURE_MAX_LEVEL, GL_TEXTURE_SWIZZLE_R,
-//GL_TEXTURE_SWIZZLE_G, GL_TEXTURE_SWIZZLE_B, GL_TEXTURE_SWIZZLE_A, GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, or GL_TEXTURE_WRAP_R.
-	if (pname != GL_TEXTURE_MIN_FILTER && pname != GL_TEXTURE_MAG_FILTER &&
-	    pname != GL_TEXTURE_WRAP_S && pname != GL_TEXTURE_WRAP_T && pname != GL_TEXTURE_WRAP_R) {
-
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	if (pname == GL_TEXTURE_MIN_FILTER) {
-		if(param != GL_NEAREST && param != GL_LINEAR && param != GL_NEAREST_MIPMAP_NEAREST &&
-		   param != GL_NEAREST_MIPMAP_LINEAR && param != GL_LINEAR_MIPMAP_NEAREST &&
-		   param != GL_LINEAR_MIPMAP_LINEAR) {
-			if (!c->error)
-				c->error = GL_INVALID_ENUM;
-			return;
-		}
 
 		//TODO mipmapping isn't actually supported, not sure it's worth trouble/perf hit
 		//just adding the enums to make porting easier
@@ -9573,50 +9489,18 @@ void glTexParameteri(GLenum target, GLenum pname, GLint param)
 		c->textures.a[c->bound_textures[target]].min_filter = param;
 
 	} else if (pname == GL_TEXTURE_MAG_FILTER) {
-		if(param != GL_NEAREST && param != GL_LINEAR) {
-			if (!c->error)
-				c->error = GL_INVALID_ENUM;
-			return;
-		}
 		c->textures.a[c->bound_textures[target]].mag_filter = param;
 	} else if (pname == GL_TEXTURE_WRAP_S) {
-		if(param != GL_REPEAT && param != GL_CLAMP_TO_EDGE && param != GL_CLAMP_TO_BORDER && param != GL_MIRRORED_REPEAT) {
-			if (!c->error)
-				c->error = GL_INVALID_ENUM;
-			return;
-		}
 		c->textures.a[c->bound_textures[target]].wrap_s = param;
 	} else if (pname == GL_TEXTURE_WRAP_T) {
-		if(param != GL_REPEAT && param != GL_CLAMP_TO_EDGE && param != GL_CLAMP_TO_BORDER && param != GL_MIRRORED_REPEAT) {
-			if (!c->error)
-				c->error = GL_INVALID_ENUM;
-			return;
-		}
 		c->textures.a[c->bound_textures[target]].wrap_t = param;
 	} else if (pname == GL_TEXTURE_WRAP_R) {
-		if(param != GL_REPEAT && param != GL_CLAMP_TO_EDGE && param != GL_CLAMP_TO_BORDER && param != GL_MIRRORED_REPEAT) {
-			if (!c->error)
-				c->error = GL_INVALID_ENUM;
-			return;
-		}
 		c->textures.a[c->bound_textures[target]].wrap_r = param;
 	}
 }
 
 void glPixelStorei(GLenum pname, GLint param)
 {
-	if (pname != GL_UNPACK_ALIGNMENT && pname != GL_PACK_ALIGNMENT) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (param != 1 && param != 2 && param != 4 && param != 8) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-	
 	if (pname == GL_UNPACK_ALIGNMENT) {
 		c->unpack_alignment = param;
 	} else if (pname == GL_PACK_ALIGNMENT) {
@@ -9627,20 +9511,6 @@ void glPixelStorei(GLenum pname, GLint param)
 
 void glTexImage1D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid* data)
 {
-	if (target != GL_TEXTURE_1D) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (border) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
-	//ignore level for now
-
 	int cur_tex = c->bound_textures[target-GL_TEXTURE_UNBOUND-1];
 
 	c->textures.a[cur_tex].w = width;
@@ -9685,36 +9555,6 @@ void glTexImage1D(GLenum target, GLint level, GLint internalFormat, GLsizei widt
 
 void glTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid* data)
 {
-	//GL_TEXTURE_1D, GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE, or GL_TEXTURE_CUBE_MAP.
-	//will add others as they're implemented
-	if (target != GL_TEXTURE_2D &&
-	    target != GL_TEXTURE_RECTANGLE &&
-	    target != GL_TEXTURE_CUBE_MAP_POSITIVE_X &&
-	    target != GL_TEXTURE_CUBE_MAP_NEGATIVE_X &&
-	    target != GL_TEXTURE_CUBE_MAP_POSITIVE_Y &&
-	    target != GL_TEXTURE_CUBE_MAP_NEGATIVE_Y &&
-	    target != GL_TEXTURE_CUBE_MAP_POSITIVE_Z &&
-	    target != GL_TEXTURE_CUBE_MAP_NEGATIVE_Z) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (border) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
-	//ignore level for now
-
-	//TODO support other types?
-	if (type != GL_UNSIGNED_BYTE) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	// TODO I don't actually support anything other than GL_RGBA for input or
 	// internal format ... so I should probably make the others errors and
 	// I'm not even checking internalFormat currently..
@@ -9773,13 +9613,6 @@ void glTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei widt
 		if (!c->textures.a[cur_tex].w)
 			free(c->textures.a[cur_tex].data);
 
-		if (width != height) {
-			//TODO spec says INVALID_VALUE, man pages say INVALID_ENUM ?
-			if (!c->error)
-				c->error = GL_INVALID_VALUE;
-			return;
-		}
-
 		int mem_size = width*height*6 * components;
 		if (c->textures.a[cur_tex].w == 0) {
 			c->textures.a[cur_tex].w = width;
@@ -9822,32 +9655,12 @@ void glTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei widt
 
 void glTexImage3D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid* data)
 {
-	if (target != GL_TEXTURE_3D && target != GL_TEXTURE_2D_ARRAY) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (border) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
-	//ignore level for now
-
 	int cur_tex = c->bound_textures[target-GL_TEXTURE_UNBOUND-1];
 
 	c->textures.a[cur_tex].w = width;
 	c->textures.a[cur_tex].h = height;
 	c->textures.a[cur_tex].d = depth;
 
-	if (type != GL_UNSIGNED_BYTE) {
-		// TODO
-		return;
-	}
-
-	// TODO add error?  only support GL_RGBA for now
 	int components;
 	if (format == GL_RED) components = 1;
 	else if (format == GL_RG) components = 2;
@@ -9894,35 +9707,7 @@ void glTexImage3D(GLenum target, GLint level, GLint internalFormat, GLsizei widt
 
 void glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid* data)
 {
-	if (target != GL_TEXTURE_1D) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//ignore level for now
-
 	int cur_tex = c->bound_textures[target-GL_TEXTURE_UNBOUND-1];
-
-	//only kind supported currently
-	if (type != GL_UNSIGNED_BYTE) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//TODO
-	if (format != GL_RGBA) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (xoffset < 0 || xoffset + width > c->textures.a[cur_tex].w) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 
 	u32* texdata = (u32*) c->textures.a[cur_tex].data;
 	memcpy(&texdata[xoffset], data, width*sizeof(u32));
@@ -9930,46 +9715,12 @@ void glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, G
 
 void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid* data)
 {
-	//GL_TEXTURE_1D, GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE, or GL_TEXTURE_CUBE_MAP.
-	//will add others as they're implemented
-	if (target != GL_TEXTURE_2D &&
-	    target != GL_TEXTURE_CUBE_MAP_POSITIVE_X &&
-	    target != GL_TEXTURE_CUBE_MAP_NEGATIVE_X &&
-	    target != GL_TEXTURE_CUBE_MAP_POSITIVE_Y &&
-	    target != GL_TEXTURE_CUBE_MAP_NEGATIVE_Y &&
-	    target != GL_TEXTURE_CUBE_MAP_POSITIVE_Z &&
-	    target != GL_TEXTURE_CUBE_MAP_NEGATIVE_Z) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//ignore level for now
-
-	if (type != GL_UNSIGNED_BYTE) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (format != GL_RGBA) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	int cur_tex;
 	u32* d = (u32*) data;
 
 	if (target == GL_TEXTURE_2D) {
 		cur_tex = c->bound_textures[target-GL_TEXTURE_UNBOUND-1];
 		u32* texdata = (u32*) c->textures.a[cur_tex].data;
-
-		if (xoffset < 0 || xoffset + width > c->textures.a[cur_tex].w || yoffset < 0 || yoffset + height > c->textures.a[cur_tex].h) {
-			if (!c->error)
-				c->error = GL_INVALID_VALUE;
-			return;
-		}
 
 		int w = c->textures.a[cur_tex].w;
 
@@ -9994,38 +9745,7 @@ void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, G
 
 void glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const GLvoid* data)
 {
-	if (target != GL_TEXTURE_3D && target != GL_TEXTURE_2D_ARRAY) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//ignore level for now
-	
-	// TODO handle UNPACK alignment here as well...
-
 	int cur_tex = c->bound_textures[target-GL_TEXTURE_UNBOUND-1];
-
-	if (type != GL_UNSIGNED_BYTE) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//TODO
-	if (format != GL_RGBA) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (xoffset < 0 || xoffset + width > c->textures.a[cur_tex].w ||
-	    yoffset < 0 || yoffset + height > c->textures.a[cur_tex].h ||
-	    zoffset < 0 || zoffset + depth > c->textures.a[cur_tex].d) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 
 	int w = c->textures.a[cur_tex].w;
 	int h = c->textures.a[cur_tex].h;
@@ -10042,21 +9762,6 @@ void glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, G
 
 void glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* pointer)
 {
-	if (index >= GL_MAX_VERTEX_ATTRIBS || size < 1 || size > 4 || (!c->bound_buffers[GL_ARRAY_BUFFER-GL_ARRAY_BUFFER] && pointer)) {
-		if (!c->error)
-			c->error = GL_INVALID_OPERATION;
-		return;
-	}
-
-	//TODO type Specifies the data type of each component in the array. The symbolic constants GL_BYTE, GL_UNSIGNED_BYTE, GL_SHORT,
-	//GL_UNSIGNED_SHORT, GL_INT, and GL_UNSIGNED_INT are accepted by both functions. Additionally GL_HALF_FLOAT, GL_FLOAT, GL_DOUBLE,
-	//GL_INT_2_10_10_10_REV, and GL_UNSIGNED_INT_2_10_10_10_REV are accepted by glVertexAttribPointer. The initial value is GL_FLOAT.
-	if (type != GL_FLOAT) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	glVertex_Attrib* v = &(c->vertex_arrays.a[c->cur_vertex_array].vertex_attribs[index]);
 	v->size = size;
 	v->type = type;
@@ -10082,12 +9787,6 @@ void glDisableVertexAttribArray(GLuint index)
 
 void glVertexAttribDivisor(GLuint index, GLuint divisor)
 {
-	if (index >= GL_MAX_VERTEX_ATTRIBS) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
 	c->vertex_arrays.a[c->cur_vertex_array].vertex_attribs[index].divisor = divisor;
 }
 
@@ -10108,67 +9807,23 @@ vec4 get_vertex_attrib_array(glVertex_Attrib* v, GLsizei i)
 
 void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
-	if (mode < GL_POINTS || mode > GL_TRIANGLE_FAN) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	// TODO should I just make GLsizei an uint32_t rather than int32_t?
-	if (count < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	if (!count)
 		return;
-
 	run_pipeline(mode, first, count, 0, 0, GL_FALSE);
 }
 
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLsizei offset)
 {
-	if (mode < GL_POINTS || mode > GL_TRIANGLE_FAN) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//error not in the spec but says type must be one of these ... strange
-	if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT && type != GL_UNSIGNED_INT) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-	// TODO should I just make GLsizei an uint32_t rather than int32_t?
-	if (count < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	if (!count)
 		return;
-
 	c->buffers.a[c->vertex_arrays.a[c->cur_vertex_array].element_buffer].type = type;
 	run_pipeline(mode, offset, count, 0, 0, GL_TRUE);
 }
 
 void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount)
 {
-	if (mode < GL_POINTS || mode > GL_TRIANGLE_FAN) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (count < 0 || instancecount < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	if (!count || !instancecount)
 		return;
-
 	for (unsigned int instance = 0; instance < instancecount; ++instance) {
 		run_pipeline(mode, first, count, instance, 0, GL_FALSE);
 	}
@@ -10176,20 +9831,8 @@ void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei inst
 
 void glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance)
 {
-	if (mode < GL_POINTS || mode > GL_TRIANGLE_FAN) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	if (count < 0 || instancecount < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	if (!count || !instancecount)
 		return;
-
 	for (unsigned int instance = 0; instance < instancecount; ++instance) {
 		run_pipeline(mode, first, count, instance, baseinstance, GL_FALSE);
 	}
@@ -10198,26 +9841,8 @@ void glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, 
 
 void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, GLsizei offset, GLsizei instancecount)
 {
-	if (mode < GL_POINTS || mode > GL_TRIANGLE_FAN) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	// NOTE: error not in the spec but says type must be one of these ... strange
-	if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT && type != GL_UNSIGNED_INT) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-	if (count < 0 || instancecount < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	if (!count || !instancecount)
 		return;
-
 	c->buffers.a[c->vertex_arrays.a[c->cur_vertex_array].element_buffer].type = type;
 
 	for (unsigned int instance = 0; instance < instancecount; ++instance) {
@@ -10227,26 +9852,8 @@ void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, GLsizei of
 
 void glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, GLsizei offset, GLsizei instancecount, GLuint baseinstance)
 {
-	if (mode < GL_POINTS || mode > GL_TRIANGLE_FAN) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
-	//error not in the spec but says type must be one of these ... strange
-	if (type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT && type != GL_UNSIGNED_INT) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-	if (count < 0 || instancecount < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	if (!count || !instancecount)
 		return;
-
 	c->buffers.a[c->vertex_arrays.a[c->cur_vertex_array].element_buffer].type = type;
 
 	for (unsigned int instance = 0; instance < instancecount; ++instance) {
@@ -10257,12 +9864,6 @@ void glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type
 
 void glViewport(int x, int y, GLsizei width, GLsizei height)
 {
-	if (width < 0 || height < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
 	make_viewport_matrix(c->vp_mat, x, y, width, height, 1);
 	c->x_min = x;
 	c->y_min = y;
@@ -10288,13 +9889,6 @@ void glClearDepth(GLclampf depth)
 
 void glDepthFunc(GLenum func)
 {
-	if (func < GL_LESS || func > GL_NEVER) {
-		if (!c->error)
-			c->error =GL_INVALID_ENUM;
-
-		return;
-	}
-
 	c->depth_func = func;
 }
 
@@ -10311,13 +9905,6 @@ void glDepthMask(GLboolean flag)
 
 void glClear(GLbitfield mask)
 {
-	if (!(mask & (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		printf("failed to clear\n");
-		return;
-	}
-	
 	// TODO since all the buffers should be the same width and height
 	// (right? even though they're different types they should be 1 to 1),
 	// why not just set local w and h and use for all instead of member w/h
@@ -10551,34 +10138,17 @@ void glGetIntegerv(GLenum pname, GLint* params)
 
 void glCullFace(GLenum mode)
 {
-	if (mode != GL_FRONT && mode != GL_BACK && mode != GL_FRONT_AND_BACK) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
 	c->cull_mode = mode;
 }
 
 
 void glFrontFace(GLenum mode)
 {
-	if (mode != GL_CCW && mode != GL_CW) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
 	c->front_face = mode;
 }
 
 void glPolygonMode(GLenum face, GLenum mode)
 {
-	if ((face != GL_FRONT && face != GL_BACK && face != GL_FRONT_AND_BACK) ||
-	    (mode != GL_POINT && mode != GL_LINE && mode != GL_FILL)) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	if (mode == GL_POINT) {
 		if (face == GL_FRONT) {
 			c->poly_mode_front = mode;
@@ -10624,34 +10194,17 @@ void glPolygonMode(GLenum face, GLenum mode)
 
 void glPointSize(GLfloat size)
 {
-	if (size <= 0.0f) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
 	c->point_size = size;
 }
 
 void glPointParameteri(GLenum pname, GLint param)
 {
-	//also GL_POINT_FADE_THRESHOLD_SIZE
-	if (pname != GL_POINT_SPRITE_COORD_ORIGIN || (param != GL_LOWER_LEFT && param != GL_UPPER_LEFT)) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
 	c->point_spr_origin = param;
 }
 
 
 void glProvokingVertex(GLenum provokeMode)
 {
-	if (provokeMode != GL_FIRST_VERTEX_CONVENTION && provokeMode != GL_LAST_VERTEX_CONVENTION) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return;
-	}
-
 	c->provoking_vert = provokeMode;
 }
 
@@ -10659,17 +10212,6 @@ void glProvokingVertex(GLenum provokeMode)
 // Shader functions
 GLuint pglCreateProgram(vert_func vertex_shader, frag_func fragment_shader, GLsizei n, GLenum* interpolation, GLboolean fragdepth_or_discard)
 {
-	if (!vertex_shader || !fragment_shader) {
-		//TODO set error? doesn't in spec but I'll think about it
-		return 0;
-	}
-
-	if (n > GL_MAX_VERTEX_OUTPUT_COMPONENTS) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return 0;
-	}
-
 	glProgram tmp = {vertex_shader, fragment_shader, NULL, n, {0}, fragdepth_or_discard, GL_FALSE };
 	for (int i=0; i<n; ++i) {
 		tmp.interpolation[i] = interpolation[i];
@@ -10691,23 +10233,11 @@ void glDeleteProgram(GLuint program)
 	if (!program)
 		return;
 
-	if (program >= c->programs.size) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
 	c->programs.a[program].deleted = GL_TRUE;
 }
 
 void glUseProgram(GLuint program)
 {
-	if (program >= c->programs.size) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-		return;
-	}
-
 	c->vs_output.size = c->programs.a[program].vs_output_size;
 	cvec_reserve_float(&c->vs_output.output_buf, c->vs_output.size * MAX_VERTICES);
 	c->vs_output.interpolation = c->programs.a[program].interpolation;
@@ -10726,26 +10256,12 @@ void pglSetUniform(void* uniform)
 
 void glBlendFunc(GLenum sfactor, GLenum dfactor)
 {
-	if (sfactor < GL_ZERO || sfactor >= NUM_BLEND_FUNCS || dfactor < GL_ZERO || dfactor >= NUM_BLEND_FUNCS) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	c->blend_sfactor = sfactor;
 	c->blend_dfactor = dfactor;
 }
 
 void glBlendEquation(GLenum mode)
 {
-	if (mode < GL_FUNC_ADD || mode >= NUM_BLEND_EQUATIONS ) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	c->blend_equation = mode;
 }
 
@@ -10756,12 +10272,6 @@ void glBlendColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 
 void glLogicOp(GLenum opcode)
 {
-	if (opcode < GL_CLEAR || opcode > GL_INVERT) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
 	c->logic_func = opcode;
 }
 
@@ -10773,14 +10283,6 @@ void glPolygonOffset(GLfloat factor, GLfloat units)
 
 void glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 {
-	// once again why is GLsizei not unsigned?
-	if (width < 0 || height < 0) {
-		if (!c->error)
-			c->error = GL_INVALID_VALUE;
-
-		return;
-	}
-
 	c->scissor_lx = x;
 	c->scissor_ly = y;
 	c->scissor_ux = x+width;
@@ -10789,13 +10291,6 @@ void glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 
 void glStencilFunc(GLenum func, GLint ref, GLuint mask)
 {
-	if (func < GL_LESS || func > GL_NEVER) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	c->stencil_func = func;
 	c->stencil_func_back = func;
 
@@ -10814,22 +10309,8 @@ void glStencilFunc(GLenum func, GLint ref, GLuint mask)
 
 void glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
 {
-	if (face < GL_FRONT || face > GL_FRONT_AND_BACK) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	if (face == GL_FRONT_AND_BACK) {
 		glStencilFunc(func, ref, mask);
-		return;
-	}
-
-	if (func < GL_LESS || func > GL_NEVER) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
 		return;
 	}
 
@@ -10852,20 +10333,6 @@ void glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
 
 void glStencilOp(GLenum sfail, GLenum dpfail, GLenum dppass)
 {
-	// TODO not sure if I should check all parameters first or
-	// allow partial success?
-	//
-	// Also, how best to check when the enums aren't contiguous?  empty switch?
-	// manually checking all enums?
-	if ((sfail < GL_INVERT || sfail > GL_DECR_WRAP) && sfail != GL_ZERO ||
-	    (dpfail < GL_INVERT || dpfail > GL_DECR_WRAP) && sfail != GL_ZERO ||
-	    (dppass < GL_INVERT || dppass > GL_DECR_WRAP) && sfail != GL_ZERO) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	c->stencil_sfail = sfail;
 	c->stencil_dpfail = dpfail;
 	c->stencil_dppass = dppass;
@@ -10877,24 +10344,8 @@ void glStencilOp(GLenum sfail, GLenum dpfail, GLenum dppass)
 
 void glStencilOpSeparate(GLenum face, GLenum sfail, GLenum dpfail, GLenum dppass)
 {
-	if (face < GL_FRONT || face > GL_FRONT_AND_BACK) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	if (face == GL_FRONT_AND_BACK) {
 		glStencilOp(sfail, dpfail, dppass);
-		return;
-	}
-
-	if ((sfail < GL_INVERT || sfail > GL_DECR_WRAP) && sfail != GL_ZERO ||
-	    (dpfail < GL_INVERT || dpfail > GL_DECR_WRAP) && sfail != GL_ZERO ||
-	    (dppass < GL_INVERT || dppass > GL_DECR_WRAP) && sfail != GL_ZERO) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
 		return;
 	}
 
@@ -10923,13 +10374,6 @@ void glStencilMask(GLuint mask)
 
 void glStencilMaskSeparate(GLenum face, GLuint mask)
 {
-	if (face < GL_FRONT || face > GL_FRONT_AND_BACK) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-
-		return;
-	}
-
 	if (face == GL_FRONT_AND_BACK) {
 		glStencilMask(mask);
 		return;
@@ -10946,18 +10390,6 @@ void glStencilMaskSeparate(GLenum face, GLuint mask)
 // Just wrap my pgl extension getter, unmap does nothing
 void* glMapBuffer(GLenum target, GLenum access)
 {
-	if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return NULL;
-	}
-
-	if (access != GL_READ_ONLY && access != GL_WRITE_ONLY && access != GL_READ_WRITE) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return NULL;
-	}
-
 	// adjust to access bound_buffers
 	target -= GL_ARRAY_BUFFER;
 
@@ -10968,13 +10400,6 @@ void* glMapBuffer(GLenum target, GLenum access)
 
 void* glMapNamedBuffer(GLuint buffer, GLenum access)
 {
-	// pglGetBufferData will verify buffer is valid
-	if (access != GL_READ_ONLY && access != GL_WRITE_ONLY && access != GL_READ_WRITE) {
-		if (!c->error)
-			c->error = GL_INVALID_ENUM;
-		return NULL;
-	}
-
 	void* data = NULL;
 	pglGetBufferData(buffer, &data);
 	return data;
