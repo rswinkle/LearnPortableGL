@@ -48,3 +48,7 @@ project "4.10.3.asteroids_instanced"
 	kind "ConsoleApp"
 	files "asteroids_instanced.cpp"
 	links { "assimp" }
+
+project "4.11.1.anti_aliasing_msaa"
+	kind "ConsoleApp"
+	files "anti_aliasing_msaa.cpp"

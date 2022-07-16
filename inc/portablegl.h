@@ -7481,12 +7481,13 @@ static void vertex_stage(GLint first, GLsizei count, GLsizei instance_id, GLuint
 	GLuint elem_buffer = c->vertex_arrays.a[c->cur_vertex_array].element_buffer;
 
 	for (i=0, j=0; i<GL_MAX_VERTEX_ATTRIBS; ++i) {
-		memcpy(&c->vertex_attribs_vs[i], vec4_init, sizeof(vec4));
-
 		if (v[i].enabled) {
 			if (v[i].divisor == 0) {
+				memcpy(&c->vertex_attribs_vs[i], vec4_init, sizeof(vec4));
 				enabled[j++] = i;
 			} else if (!(instance_id % v[i].divisor)) {   //set instanced attributes if necessary
+				memcpy(&c->vertex_attribs_vs[i], vec4_init, sizeof(vec4));
+
 				int n = instance_id/v[i].divisor + base_instance;
 				buf_pos = (u8*)c->buffers.a[v[i].buf].data + v[i].offset + v[i].stride*n;
 
