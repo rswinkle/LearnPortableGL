@@ -17,7 +17,7 @@ workspace "LearnPortableGL"
 
 	configuration "Release"
 		defines { "NDEBUG" }
-		optimize "On"
+		optimize "Speed"
 
 	printf("%s", _WORKING_DIR)
 
