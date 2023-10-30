@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -91,10 +91,10 @@ void cleanup();
 bool handle_events();
 unsigned int loadTexture(const char *path);
 
-void materials_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void materials_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
-void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 // settings
@@ -133,7 +133,7 @@ int main()
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH2 };
 	GLuint lightingShader = pglCreateProgram(materials_vs, materials_fs, 8, smooth, GL_FALSE);
 	glUseProgram(lightingShader);
 	pglSetUniform(&uniforms);
@@ -502,7 +502,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void materials_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void materials_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -528,7 +528,7 @@ void materials_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* built
 
 
 
-inline vec4 toglm(glinternal_vec4 v)
+inline vec4 toglm(pgl_vec4 v)
 {
 	return vec4(v.x, v.y, v.z, v.w);
 }
@@ -639,7 +639,7 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, vec
 }
 
 
-void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -711,7 +711,6 @@ unsigned int loadTexture(char const * path)
 
 	return textureID;
 }
-
 
 
 

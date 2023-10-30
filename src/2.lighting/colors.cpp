@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -14,6 +14,9 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
+// This means we have to define PGL_MANGLE_TYPES up above
+// to prevent clashing so PGL's GLSL types get a pgl_ prefix
+// see shader
 using namespace glm;
 
 struct My_Uniforms
@@ -24,14 +27,13 @@ struct My_Uniforms
 
 	vec3 objectColor;
 	vec3 lightColor;
-	
 };
 
 void setup_context();
 void cleanup();
 bool handle_events();
 
-void colors_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void colors_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void colors_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
@@ -339,10 +341,9 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
-void colors_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void colors_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 

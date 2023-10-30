@@ -98,6 +98,9 @@ int main()
 	// position attribute
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
 	glEnableVertexAttribArray(0);
+
+	// NOTE: pglVertexAttribPointer is just a macro wrapper that does the (void*)(offset) cast
+	// to the last parameter for you
 	// color attribute
 	pglVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 3 * sizeof(float));
 	glEnableVertexAttribArray(1);

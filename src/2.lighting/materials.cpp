@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -48,10 +48,10 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void materials_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void materials_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
-void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 // settings
@@ -93,7 +93,7 @@ int main()
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint lightingShader = pglCreateProgram(materials_vs, materials_fs, 6, smooth, GL_FALSE);
 	glUseProgram(lightingShader);
 	pglSetUniform(&uniforms);
@@ -381,7 +381,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void materials_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void materials_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -432,7 +432,7 @@ void materials_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
 }
 
-void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 

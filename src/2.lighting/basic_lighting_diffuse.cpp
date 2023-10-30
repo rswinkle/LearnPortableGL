@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -25,17 +25,16 @@ struct My_Uniforms
 	vec3 objectColor;
 	vec3 lightColor;
 	vec3 lightPos;
-	
 };
 
 void setup_context();
 void cleanup();
 bool handle_events();
 
-void basic_lighting_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void basic_lighting_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void basic_lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
-void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 // settings
@@ -77,7 +76,7 @@ int main()
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint lightingShader = pglCreateProgram(basic_lighting_vs, basic_lighting_fs, 6, smooth, GL_FALSE);
 	glUseProgram(lightingShader);
 	pglSetUniform(&uniforms);
@@ -345,10 +344,9 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
-void basic_lighting_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void basic_lighting_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -390,7 +388,7 @@ void basic_lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniform
 	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
 }
 
-void light_cube_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
