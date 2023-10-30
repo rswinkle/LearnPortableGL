@@ -31,7 +31,7 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void camera_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void camera_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void camera_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -72,7 +72,7 @@ int main()
 
 	// Create our shader program
 	// ------------------------------------
-	GLenum smooth[2] = { SMOOTH, SMOOTH };
+	GLenum smooth[2] = { PGL_SMOOTH2 };
 	ourShader = pglCreateProgram(camera_vs, camera_fs, 2, smooth, GL_FALSE);
 	glUseProgram(ourShader);
 	pglSetUniform(&uniforms);
@@ -144,7 +144,7 @@ int main()
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	// position attribute TODO change type of parameter to match OpenGL's stupidity?
+	// position attribute
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
 	glEnableVertexAttribArray(0);
 	// texture coord attribute
@@ -388,10 +388,9 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
-void camera_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void camera_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -420,7 +419,7 @@ void camera_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	GLuint tex2 = u->tex2;
 
 	// linearly interpolate between both textures (80% container, 20% awesomeface)
-	builtins->gl_FragColor = mix_vec4s(texture2D(tex1, tc.x, tc.y), texture2D(tex2, tc.x, tc.y), 0.2);
+	builtins->gl_FragColor = mix_vec4(texture2D(tex1, tc.x, tc.y), texture2D(tex2, tc.x, tc.y), 0.2);
 
 	// use glm::mix somehow
 	//builtins->gl_FragColor = glm::mix(texture2D(tex1, tc.x, tc.y) texture2D(tex2, tc.x, tc.y), 0.2);

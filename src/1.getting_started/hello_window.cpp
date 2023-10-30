@@ -47,7 +47,6 @@ int main()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 
 	// render loop
 	// -----------

@@ -39,19 +39,19 @@ struct My_Uniforms
 };
 
 // using PGL's internal vector types and functions in these shaders
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void texture_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
-	builtins->gl_Position = ((vec4*)vertex_attribs)[0];
+	builtins->gl_Position = vertex_attribs[0];
 
-	vec4 aColor = ((vec4*)vertex_attribs)[1];
+	vec4 aColor = vertex_attribs[1];
 	// ourColor = aColor;
 	vs_output[0] = aColor.x;
 	vs_output[1] = aColor.y;
 	vs_output[2] = aColor.z;
 
 	// TexCoord = aTexCoord;
-	vs_output[3] = ((vec4*)vertex_attribs)[2].x;
-	vs_output[4] = ((vec4*)vertex_attribs)[2].y;
+	vs_output[3] = vertex_attribs[2].x;
+	vs_output[4] = vertex_attribs[2].y;
 
 }
 void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
@@ -61,7 +61,7 @@ void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	// TODO add vector versions of texture mapping functions to PGL
 	//
 	// FragColor = mix(texture(tex1, TexCoord), texture(tex2, TexCoord), 0.2);
-	builtins->gl_FragColor = mix_vec4s(texture2D(u->tex1, fs_input[3], fs_input[4]), texture2D(u->tex2, fs_input[3], fs_input[4]), u->mixValue);
+	builtins->gl_FragColor = mix_vec4(texture2D(u->tex1, fs_input[3], fs_input[4]), texture2D(u->tex2, fs_input[3], fs_input[4]), u->mixValue);
 }
 
 int main()
@@ -70,7 +70,7 @@ int main()
 
 	// build our shader program
 	// ------------------------
-	GLenum smooth[5] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	GLenum smooth[5] = { PGL_SMOOTH3, PGL_SMOOTH2 };
 	unsigned int ourShader = pglCreateProgram(texture_vs, texture_fs, 5, smooth, GL_FALSE);
 	glUseProgram(ourShader);
 	My_Uniforms uniforms;
@@ -121,7 +121,7 @@ int main()
 	glGenTextures(1, &texture1);
 	glBindTexture(GL_TEXTURE_2D, texture1);
 	 // set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // set texture wrapping to GL_REPEAT (default wrapping method)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	// set texture filtering parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -130,8 +130,6 @@ int main()
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
 	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-	//
-	// NOTE: PGL currently only supports 32-bit RGBA, so always requset that of stbi_load
 	unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
 	if (data)
 	{
@@ -148,13 +146,13 @@ int main()
 	glGenTextures(1, &texture2);
 	glBindTexture(GL_TEXTURE_2D, texture2);
 	// set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // set texture wrapping to GL_REPEAT (default wrapping method)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	// set texture filtering parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// load image, create texture and generate mipmaps
-	data = stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
+	data = stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, 0);
 	if (data)
 	{
 		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
@@ -287,7 +285,6 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
 void cleanup()

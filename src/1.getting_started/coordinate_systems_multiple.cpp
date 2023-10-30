@@ -42,7 +42,7 @@ struct My_Uniforms
 };
 
 // using PGL's internal vector types and functions in these shaders
-void coordinate_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void coordinate_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -68,7 +68,7 @@ void coordinate_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	// TODO add vector versions of texture mapping functions to PGL
 	//
 	// FragColor = mix(texture(tex1, TexCoord), texture(tex2, TexCoord), 0.2);
-	builtins->gl_FragColor = mix_vec4s(texture2D(u->tex1, fs_input[0], fs_input[1]), texture2D(u->tex2, fs_input[0], fs_input[1]), 0.2);
+	builtins->gl_FragColor = mix_vec4(texture2D(u->tex1, fs_input[0], fs_input[1]), texture2D(u->tex2, fs_input[0], fs_input[1]), 0.2);
 }
 
 int main()
@@ -81,8 +81,8 @@ int main()
 
 	// build our shader program
 	// ------------------------
-	GLenum smooth[5] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
-	unsigned int ourShader = pglCreateProgram(coordinate_vs, coordinate_fs, 5, smooth, GL_FALSE);
+	GLenum smooth[2] = { PGL_SMOOTH2 };
+	unsigned int ourShader = pglCreateProgram(coordinate_vs, coordinate_fs, 2, smooth, GL_FALSE);
 	glUseProgram(ourShader);
 	My_Uniforms uniforms;
 	pglSetUniform(&uniforms);
@@ -336,7 +336,6 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
 void cleanup()

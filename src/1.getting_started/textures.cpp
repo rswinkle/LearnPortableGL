@@ -34,19 +34,19 @@ struct My_Uniforms
 };
 
 // using PGL's internal vector types and functions in these shaders
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void texture_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
-	builtins->gl_Position = ((vec4*)vertex_attribs)[0];
+	builtins->gl_Position = vertex_attribs[0];
 
-	vec4 aColor = ((vec4*)vertex_attribs)[1];
+	vec4 aColor = vertex_attribs[1];
 	// ourColor = aColor;
 	vs_output[0] = aColor.x;
 	vs_output[1] = aColor.y;
 	vs_output[2] = aColor.z;
 
 	// TexCoord = aTexCoord;
-	vs_output[3] = ((vec4*)vertex_attribs)[2].x;
-	vs_output[4] = ((vec4*)vertex_attribs)[2].y;
+	vs_output[3] = vertex_attribs[2].x;
+	vs_output[4] = vertex_attribs[2].y;
 
 }
 void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
@@ -63,7 +63,7 @@ int main()
 
 	// build our shader program
 	// ------------------------
-	GLenum smooth[5] = { SMOOTH, SMOOTH, SMOOTH, SMOOTH, SMOOTH };
+	GLenum smooth[5] = { PGL_SMOOTH3, PGL_SMOOTH2 };
 	unsigned int ourShader = pglCreateProgram(texture_vs, texture_fs, 5, smooth, GL_FALSE);
 	glUseProgram(ourShader);
 	My_Uniforms uniforms;
@@ -106,13 +106,13 @@ int main()
 	glEnableVertexAttribArray(2);
 
 
-	// load and create a texture 
+	// load and create a texture
 	// -------------------------
 	unsigned int texture;
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
 	// set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // set texture wrapping to GL_REPEAT (default wrapping method)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	// set texture filtering parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -121,11 +121,16 @@ int main()
 	int width, height, nrChannels;
 	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
 	//
-	// NOTE: PGL currently only supports 32-bit RGBA, so always requset that of stbi_load
-	unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
+	// NOTE: Internally PGL currently only supports 32-bit RGBA, but will automatically convert other formats appropriately
+	// when you call glTexImage*().  Of course, you can always request 4 channels from stbi_load too, see commented lines for
+	// alternative required pre PGL 0.98
+	
+	//unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
+	unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/container.jpg").c_str(), &width, &height, &nrChannels, 0);
 	if (data)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	else
@@ -244,7 +249,6 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
 void cleanup()

@@ -25,11 +25,11 @@ glContext the_Context;
 
 
 // using PGL's internal vector types and functions in these shaders
-void interpolation_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void interpolation_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
-	((vec4*)vs_output)[0] = ((vec4*)vertex_attribs)[1];
+	((vec4*)vs_output)[0] = vertex_attribs[1];
 
-	builtins->gl_Position = ((vec4*)vertex_attribs)[0];
+	builtins->gl_Position = vertex_attribs[0];
 }
 void interpolation_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
@@ -46,8 +46,12 @@ int main()
 	// ------------------------
 	
 	// The array controls the interpolation of the attributes passed between the
-	// vertex and fragment shaders on an element basis, ie you need 3 for a vec3
-	GLenum smooth[3] = { SMOOTH, SMOOTH, SMOOTH };
+	// vertex and fragment shaders on an element basis. You can use PGL_SMOOTH
+	// PGL_FLAT, or PGL_NOPERSPECTIVE for each element, or convenience macros
+	// for 2, 3, and 4 of each.  So here PGL_SMOOTH3 expands to
+	// PGL_SMOOTH, PGL_SMOOTH, PGL_SMOOTH which is what we need to interpolate
+	// the r, g, and b components of the color
+	GLenum smooth[3] = { PGL_SMOOTH3 };
 	unsigned int shaderProgram = pglCreateProgram(interpolation_vs, interpolation_fs, 3, smooth, GL_FALSE);
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
@@ -184,7 +188,6 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
 void cleanup()
