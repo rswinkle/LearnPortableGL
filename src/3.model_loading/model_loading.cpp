@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -28,7 +28,7 @@ unsigned int scr_width = 640;
 unsigned int scr_height = 480;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(vec3(0.0f, 0.0f, 3.0f));
 float lastX = scr_width / 2.0f;
 float lastY = scr_height / 2.0f;
 bool firstMouse = true;
@@ -47,8 +47,7 @@ u32* bbufpix;
 glContext the_Context;
 
 
-// using PGL's internal vector types and functions in these shaders
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void texture_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	Model_Uniforms* u = (Model_Uniforms*)uniforms;
 
@@ -60,8 +59,8 @@ void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtin
 	*(vec4*)&builtins->gl_Position = projection * view * model * ((vec4*)vertex_attribs)[0];
 
 	// TexCoord = aTexCoord;
-	vs_output[0] = ((vec4*)vertex_attribs)[2].x;
-	vs_output[1] = ((vec4*)vertex_attribs)[2].y;
+	vs_output[0] = vertex_attribs[2].x;
+	vs_output[1] = vertex_attribs[2].y;
 
 }
 void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
@@ -88,7 +87,7 @@ int main()
 
 	// build our shader program
 	// ------------------------
-	GLenum smooth[2] = { SMOOTH, SMOOTH };
+	GLenum smooth[2] = { PGL_SMOOTH2 };
 	unsigned int ourShader = pglCreateProgram(texture_vs, texture_fs, 2, smooth, GL_FALSE);
 	glUseProgram(ourShader);
 	Model_Uniforms uniforms;
@@ -121,13 +120,13 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// view/projection transformations
-		uniforms.projection = glm::perspective(glm::radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
+		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
 		uniforms.view = camera.GetViewMatrix();
 
 		// render the loaded model
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-		uniforms.model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		mat4 model = mat4(1.0f);
+		model = translate(model, vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+		uniforms.model = scale(model, vec3(1.0f, 1.0f, 1.0f)); // it's a bit too big for our scene, so scale it down
 		ourModel.Draw(ourShader, &uniforms);
 
 		// SDL2: Update SDL_Texture to latest rendered frame, then blit to screen
@@ -256,7 +255,6 @@ void setup_context()
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
-	set_glContext(&the_Context);
 }
 
 void cleanup()
