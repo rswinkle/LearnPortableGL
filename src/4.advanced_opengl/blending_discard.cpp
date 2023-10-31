@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -34,7 +34,7 @@ void cleanup();
 bool handle_events();
 unsigned int loadTexture(const char *path, GLenum wrapmode);
 
-void blending_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void blending_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void blending_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -74,7 +74,7 @@ int main()
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH2 };
 	GLuint shader = pglCreateProgram(blending_vs, blending_fs, 2, smooth, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
@@ -395,7 +395,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void blending_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void blending_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -417,7 +417,7 @@ void blending_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 	vec2 TexCoords = *(vec2*)&fs_input[0];
 
-	glinternal_vec4 texColor = texture2D(u->tex, TexCoords.x, TexCoords.y);
+	pgl_vec4 texColor = texture2D(u->tex, TexCoords.x, TexCoords.y);
 
 	// xyzw = rgba
 	if (texColor.w < 0.1f) {

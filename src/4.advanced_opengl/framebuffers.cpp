@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_MANGLE_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -48,9 +48,9 @@ void cleanup();
 bool handle_events();
 unsigned int loadTexture(const char *path);
 
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void texture_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
-void screen_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void screen_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void screen_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -92,7 +92,7 @@ int main()
 
 	// Create our shader programs and set uniform pointer for each
 	// -----------------------------------------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH2 };
 	GLuint shader = pglCreateProgram(texture_vs, texture_fs, 2, smooth, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
@@ -274,7 +274,7 @@ int main()
 		glBindVertexArray(0);
 
 		// Copy framebuffer to textureColorbuffer (because PGL doesn't support
-		// framebuffer/renderbuffer objects or render to texture in general yet
+		// framebuffer/renderbuffer objects or render to texture in general yet)
 		glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, scr_width, scr_height, GL_RGBA, GL_UNSIGNED_BYTE, bbufpix);
 		uniforms.tex = textureColorbuffer;
@@ -287,7 +287,7 @@ int main()
 
 		glUseProgram(screenShader);
 		glBindVertexArray(quadVAO);
-		glBindTexture(GL_TEXTURE_2D, textureColorbuffer);	// use the color attachment texture as the texture of the quad plane
+		glBindTexture(GL_TEXTURE_2D, textureColorbuffer); // use the color attachment texture as the texture of the quad plane
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 
@@ -412,7 +412,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void texture_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void texture_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -437,7 +437,7 @@ void texture_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	builtins->gl_FragColor = texture2D(u->tex, TexCoords.x, TexCoords.y);
 }
 
-void screen_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void screen_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
@@ -448,7 +448,7 @@ void screen_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins
 	// Texcoords = aTexCoord
 	*(vec2*)&vs_output[0] = aTexCoords;
 
-	//print_vec4(((glinternal_vec4*)vertex_attribs)[0], "\n");
+	//print_vec4(((pgl_vec4*)vertex_attribs)[0], "\n");
 
 	*(vec4*)&builtins->gl_Position = aPos;
 }
