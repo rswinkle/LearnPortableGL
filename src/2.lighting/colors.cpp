@@ -1,4 +1,4 @@
-#define PGL_MANGLE_TYPES
+#define PGL_PREFIX_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -14,7 +14,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
-// This means we have to define PGL_MANGLE_TYPES up above
+// This means we have to define PGL_PREFIX_TYPES up above
 // to prevent clashing so PGL's GLSL types get a pgl_ prefix
 // see shader
 using namespace glm;

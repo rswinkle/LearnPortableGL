@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_PREFIX_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -27,8 +27,8 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void asteroid_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
-void planet_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void asteroid_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void planet_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void texturing_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -70,7 +70,7 @@ int main()
 
 	// build and compile shaders
 	// -------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH2 };
 	GLuint asteroidShader = pglCreateProgram(asteroid_vs, texturing_fs, 2, smooth, GL_FALSE);
 	GLuint planetShader = pglCreateProgram(planet_vs, texturing_fs, 2, smooth, GL_FALSE);
 	Model_Uniforms uniforms;
@@ -310,7 +310,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void asteroid_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void asteroid_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	Model_Uniforms* u = (Model_Uniforms*)uniforms;
 
@@ -342,7 +342,7 @@ void texturing_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	builtins->gl_FragColor = texture2D(u->texture_diffuse[0], fs_input[0], fs_input[1]);
 }
 
-void planet_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void planet_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	Model_Uniforms* u = (Model_Uniforms*)uniforms;
 

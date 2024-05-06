@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_PREFIX_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -28,7 +28,7 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void basic_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void basic_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void solidcolor_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -282,7 +282,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void basic_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void basic_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 

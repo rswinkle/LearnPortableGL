@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_PREFIX_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -25,7 +25,7 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void instancing_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void instancing_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void instancing_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -67,7 +67,7 @@ int main()
 
 	// build and compile shaders
 	// -------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH2 };
 	GLuint shader = pglCreateProgram(instancing_vs, instancing_fs, 2, smooth, GL_FALSE);
 	glUseProgram(shader);
 	Model_Uniforms uniforms;
@@ -268,7 +268,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void instancing_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void instancing_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	Model_Uniforms* u = (Model_Uniforms*)uniforms;
 

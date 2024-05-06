@@ -1,4 +1,4 @@
-#define MANGLE_TYPES
+#define PGL_PREFIX_TYPES
 #define PORTABLEGL_IMPLEMENTATION
 #include <portablegl.h>
 
@@ -32,7 +32,7 @@ void setup_context();
 void cleanup();
 bool handle_events();
 
-void instancing_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void instancing_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void instancing_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
@@ -66,7 +66,7 @@ int main()
 
 	// build and compile shaders
 	// -----------------------------------------------------------
-	GLenum smooth[] = { SMOOTH, SMOOTH, SMOOTH };
+	GLenum smooth[] = { PGL_SMOOTH3 };
 	GLuint shader = pglCreateProgram(instancing_vs, instancing_fs, 3, smooth, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
@@ -239,7 +239,7 @@ void setup_context()
 	set_glContext(&the_Context);
 }
 
-void instancing_vs(float* vs_output, void* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+void instancing_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
 {
 	// could have just gotten aPos and aOffset as vec4's because 0 and 1 are
 	// defaults for z and w
