@@ -226,11 +226,11 @@ bool handle_events()
 			if (sc == SDL_SCANCODE_ESCAPE) {
 				return true;
 			} else if (sc == SDL_SCANCODE_UP) {
-				mixValue += 0.001f; // change for preferences/hardware
+				mixValue += 0.005f; // change for preferences/hardware
 				if (mixValue >= 1.0f)
 					mixValue = 1.0f;
 			} else if (sc == SDL_SCANCODE_DOWN) {
-				mixValue -= 0.001f; // change for preferences/hardware
+				mixValue -= 0.005f; // change for preferences/hardware
 				if (mixValue <= 0.0f)
 					mixValue = 0.0f;
 			}
