@@ -12,12 +12,12 @@ bool handle_events();
 unsigned int scr_width = 640;
 unsigned int scr_height = 480;
 
-#define PIX_FORMAT SDL_PIXELFORMAT_ARGB8888
+#define PIX_FORMAT SDL_PIXELFORMAT_ABGR8888
 
 SDL_Window* window;
 SDL_Renderer* ren;
 SDL_Texture* tex;
-u32* bbufpix;
+pix_t* bbufpix;
 
 glContext the_Context;
 
@@ -53,7 +53,7 @@ int main()
 	tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 	// Initialize and set PGL context
-	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)) {
+	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height)) {
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
@@ -136,7 +136,7 @@ int main()
 
 		// SDL2: Update SDL_Texture to latest rendered frame, then blit to screen
 		// ----------------------------------------------------------------------
-		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(u32));
+		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
 		SDL_RenderPresent(ren);
 	}
@@ -186,7 +186,8 @@ bool handle_events()
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;
 
-				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
+				pglResizeFramebuffer(scr_width, scr_height);
+				bbufpix = (pix_t*)pglGetBackBuffer();
 
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);

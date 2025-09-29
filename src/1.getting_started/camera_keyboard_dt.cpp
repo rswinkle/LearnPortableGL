@@ -28,16 +28,16 @@ glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
 
 // timing
-float deltaTime = 0.0f;	// time between current frame and last frame
+float deltaTime = 0.0f; // time between current frame and last frame
 float lastFrame = 0.0f;
 
 
-#define PIX_FORMAT SDL_PIXELFORMAT_ARGB8888
+#define PIX_FORMAT SDL_PIXELFORMAT_ABGR8888
 
 SDL_Window* window;
 SDL_Renderer* ren;
 SDL_Texture* tex;
-u32* bbufpix;
+pix_t* bbufpix;
 
 glContext the_Context;
 
@@ -74,10 +74,8 @@ void coordinate_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	// TODO add vector versions of texture mapping functions to PGL
-	//
 	// FragColor = mix(texture(tex1, TexCoord), texture(tex2, TexCoord), 0.2);
-	builtins->gl_FragColor = mix_vec4(texture2D(u->tex1, fs_input[0], fs_input[1]), texture2D(u->tex2, fs_input[0], fs_input[1]), 0.2);
+	builtins->gl_FragColor = mixf_vec4(texture2D(u->tex1, fs_input[0], fs_input[1]), texture2D(u->tex2, fs_input[0], fs_input[1]), 0.2);
 }
 
 int main()
@@ -271,7 +269,7 @@ int main()
 
 		// SDL2: Update SDL_Texture to latest rendered frame, then blit to screen
 		// ----------------------------------------------------------------------
-		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(u32));
+		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
 		SDL_RenderPresent(ren);
 	}
@@ -312,7 +310,8 @@ bool handle_events()
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;
 
-				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
+				pglResizeFramebuffer(scr_width, scr_height);
+				bbufpix = (pix_t*)pglGetBackBuffer();
 
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
@@ -365,7 +364,7 @@ void setup_context()
 	tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 	// Initialize and set PGL context
-	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)) {
+	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height)) {
 		puts("Failed to initialize glContext");
 		exit(0);
 	}

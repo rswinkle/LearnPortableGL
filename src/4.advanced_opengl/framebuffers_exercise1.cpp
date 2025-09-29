@@ -19,20 +19,10 @@
 
 using namespace glm;
 
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-uint32_t rmask = 0xff000000;
-uint32_t gmask = 0x00ff0000;
-uint32_t bmask = 0x0000ff00;
-uint32_t amask = 0x000000ff;
-#define PIX_FORMAT SDL_PIXELFORMAT_RGBA8888
-#else
-uint32_t rmask = 0x000000ff;
-uint32_t gmask = 0x0000ff00;
-uint32_t bmask = 0x00ff0000;
-uint32_t amask = 0xff000000;
+// Assume little endian otherwise we'd have to define PGL_RGBA32 before including
+// portablegl to get RGBA memory order on a big endian machine (and we need that because
+// we're doing pseudo render-to-texture and PGL requires RGBA textures)
 #define PIX_FORMAT SDL_PIXELFORMAT_ABGR8888
-#endif
-
 
 struct My_Uniforms
 {
@@ -69,7 +59,7 @@ SDL_Window* window;
 SDL_Renderer* ren;
 SDL_Texture* tex;
 
-u32* bbufpix;
+pix_t* bbufpix;
 
 glContext the_Context;
 
@@ -323,7 +313,7 @@ int main()
 
 		// SDL2: blit texture (ie latest rendered frame) to screen
 		// -------------------------------------------------------------------------------
-		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(u32));
+		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
 		SDL_RenderPresent(ren);
 	}
@@ -371,7 +361,8 @@ bool handle_events()
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;
 
-				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
+				pglResizeFramebuffer(scr_width, scr_height);
+				bbufpix = (pix_t*)pglGetBackBuffer();
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
 				tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
@@ -432,10 +423,10 @@ void setup_context()
 
 	// Create Software Renderer and texture
 	ren = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
+	tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 	// Initialize and set PGL context
-	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, rmask, gmask, bmask, amask)) {
+	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height)) {
 		puts("Failed to initialize glContext");
 		exit(0);
 	}

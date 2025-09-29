@@ -50,7 +50,7 @@ SDL_Window* window;
 SDL_Renderer* ren;
 SDL_Texture* tex;
 
-u32* bbufpix;
+pix_t* bbufpix;
 
 glContext the_Context;
 
@@ -251,7 +251,7 @@ int main()
 
 		// SDL2: blit texture (ie latest rendered frame) to screen
 		// -------------------------------------------------------------------------------
-		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(u32));
+		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
 		SDL_RenderPresent(ren);
 	}
@@ -311,10 +311,11 @@ bool handle_events()
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;
 
-				bbufpix = (u32*)pglResizeFramebuffer(scr_width, scr_height);
+				pglResizeFramebuffer(scr_width, scr_height);
+				bbufpix = (pix_t*)pglGetBackBuffer();
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
-				tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
+				tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 				break;
 			}
 			break;
@@ -381,10 +382,10 @@ void setup_context()
 
 	// Create Software Renderer and texture
 	ren = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
+	tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
 
 	// Initialize and set PGL context
-	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)) {
+	if (!init_glContext(&the_Context, &bbufpix, scr_width, scr_height)) {
 		puts("Failed to initialize glContext");
 		exit(0);
 	}
@@ -419,7 +420,7 @@ void camera_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	GLuint tex2 = u->tex2;
 
 	// linearly interpolate between both textures (80% container, 20% awesomeface)
-	builtins->gl_FragColor = mix_vec4(texture2D(tex1, tc.x, tc.y), texture2D(tex2, tc.x, tc.y), 0.2);
+	builtins->gl_FragColor = mixf_vec4(texture2D(tex1, tc.x, tc.y), texture2D(tex2, tc.x, tc.y), 0.2);
 
 	// use glm::mix somehow
 	//builtins->gl_FragColor = glm::mix(texture2D(tex1, tc.x, tc.y) texture2D(tex2, tc.x, tc.y), 0.2);
