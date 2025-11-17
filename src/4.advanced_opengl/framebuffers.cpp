@@ -153,7 +153,7 @@ int main()
 	// the bottom of the image", it just treats the first row of texture data
 	// as y = 0 so if the image is rightside up in memory y = 0 will be the
 	// top, if it's upside down y = 0 will be the bottom (but it could also
-	// be sideways in which case y = 0 is really the left or right side.
+	// be sideways in which case y = 0 is really the left or right side).
 	//
 	// People are so tied to the idea that y increases up that everyone seems
 	// to make this mistake even though it has nothing to do with up/down or top/bottom.
