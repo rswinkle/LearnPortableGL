@@ -34,7 +34,7 @@ void interpolation_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* b
 void interpolation_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	// several ways to do this.
-	builtins->gl_FragColor = make_vec4(fs_input[0], fs_input[1], fs_input[2], 1.0f);
+	builtins->gl_FragColor = make_v4(fs_input[0], fs_input[1], fs_input[2], 1.0f);
 }
 
 int main()

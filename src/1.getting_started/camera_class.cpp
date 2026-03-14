@@ -420,7 +420,7 @@ void camera_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	GLuint tex2 = u->tex2;
 
 	// linearly interpolate between both textures (80% container, 20% awesomeface)
-	builtins->gl_FragColor = mixf_vec4(texture2D(tex1, tc.x, tc.y), texture2D(tex2, tc.x, tc.y), 0.2);
+	builtins->gl_FragColor = mixf_v4(texture2D(tex1, tc.x, tc.y), texture2D(tex2, tc.x, tc.y), 0.2);
 
 	// use glm::mix somehow
 	//builtins->gl_FragColor = glm::mix(texture2D(tex1, tc.x, tc.y) texture2D(tex2, tc.x, tc.y), 0.2);

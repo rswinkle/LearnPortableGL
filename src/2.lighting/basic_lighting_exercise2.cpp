@@ -420,7 +420,7 @@ void light_cube_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* 
 
 void light_cube_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
-	//builtins->gl_FragColor = make_vec4(1.0f, 1.0f, 1.0f, 1.0f);
+	//builtins->gl_FragColor = make_v4(1.0f, 1.0f, 1.0f, 1.0f);
 	*(vec4*)&builtins->gl_FragColor = vec4(1.0f);
 }
 

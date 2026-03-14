@@ -75,7 +75,7 @@ void coordinate_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
 	// FragColor = mix(texture(tex1, TexCoord), texture(tex2, TexCoord), 0.2);
-	builtins->gl_FragColor = mixf_vec4(texture2D(u->tex1, fs_input[0], fs_input[1]), texture2D(u->tex2, fs_input[0], fs_input[1]), 0.2);
+	builtins->gl_FragColor = mixf_v4(texture2D(u->tex1, fs_input[0], fs_input[1]), texture2D(u->tex2, fs_input[0], fs_input[1]), 0.2);
 }
 
 int main()

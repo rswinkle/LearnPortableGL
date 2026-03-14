@@ -28,7 +28,7 @@ void basic_vs(float* vs_output, vec4* vertex_attribs, Shader_Builtins* builtins,
 }
 void basic_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
-	builtins->gl_FragColor = make_vec4(1.0f, 0.5f, 0.2f, 1.0f);
+	builtins->gl_FragColor = make_v4(1.0f, 0.5f, 0.2f, 1.0f);
 }
 
 int main()
