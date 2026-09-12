@@ -19,9 +19,7 @@
 
 using namespace glm;
 
-// Assume little endian otherwise we'd have to define PGL_RGBA32 before including
-// portablegl to get RGBA memory order on a big endian machine (and we need that because
-// we're doing pseudo render-to-texture and PGL requires RGBA textures)
+// Default FB is 32-bit RGBA memory order on little endian (PGL_ABGR32)
 #define PIX_FORMAT SDL_PIXELFORMAT_ABGR8888
 
 struct My_Uniforms
@@ -65,7 +63,9 @@ glContext the_Context;
 
 My_Uniforms uniforms;
 
+unsigned int framebuffer;
 unsigned int textureColorbuffer;
+unsigned int rbo;
 
 int main()
 {
@@ -148,25 +148,18 @@ int main()
 		 5.0f, -0.5f, -5.0f,  2.0f, 2.0f
 	};
 
-	// I fixed the texture coordinates because the LearnOpenGL code/tutorial
-	// is wrong. OpenGL does *not* "expect the y texture coordinate 0 to be
-	// the bottom of the image", it just treats the first row of texture data
-	// as y = 0 so if the image is rightside up in memory y = 0 will be the
-	// top, if it's upside down y = 0 will be the bottom (but it could also
-	// be sideways in which case y = 0 is really the left or right side.
-	//
-	// People are so tied to the idea that y increases up that everyone seems
-	// to make this mistake even though it has nothing to do with up/down or top/bottom.
-
+	// FBO color attachments are marked invert_y, so y=0 is the bottom of the
+	// rendered image (same as OpenGL). The original 5.2 quad had y=0 at the
+	// top; with a real FBO that would flip the mirror vertically.
 	float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates. NOTE that this plane is now much smaller and at the top of the screen
 		// positions   // texCoords
-		-0.3f,  1.0f,  0.0f, 0.0f,
-		-0.3f,  0.7f,  0.0f, 1.0f,
-		 0.3f,  0.7f,  1.0f, 1.0f,
+		-0.3f,  1.0f,  0.0f, 1.0f,
+		-0.3f,  0.7f,  0.0f, 0.0f,
+		 0.3f,  0.7f,  1.0f, 0.0f,
 
-		-0.3f,  1.0f,  0.0f, 0.0f,
-		 0.3f,  0.7f,  1.0f, 1.0f,
-		 0.3f,  1.0f,  1.0f, 0.0f
+		-0.3f,  1.0f,  0.0f, 1.0f,
+		 0.3f,  0.7f,  1.0f, 0.0f,
+		 0.3f,  1.0f,  1.0f, 1.0f
 	};
 	// cube VAO
 	unsigned int cubeVAO, cubeVBO;
@@ -212,16 +205,28 @@ int main()
 
 	// framebuffer configuration
 	// -------------------------
+	glGenFramebuffers(1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 	// create a color attachment texture
 	glGenTextures(1, &textureColorbuffer);
 	glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+	// create a renderbuffer object for depth attachment (we won't be sampling this).
+	// PGL does not accept GL_DEPTH24_STENCIL8 as a renderbuffer format; depth-only
+	// GL_DEPTH_COMPONENT24 is the equivalent for this demo.
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, scr_width, scr_height);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// draw as wireframe
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 
 	// render loop
 	// -----------
@@ -241,7 +246,12 @@ int main()
 		// first render pass: mirror texture.
 		// bind to framebuffer and draw to color texture as we normally 
 		// would, but with the view camera reversed.
-		glEnable(GL_DEPTH_TEST);
+		// bind to framebuffer and draw scene as we normally would to color texture
+		// ------------------------------------------------------------------------
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glEnable(GL_DEPTH_TEST); // enable depth testing (is disabled for rendering screen-space quad)
+
+		// make sure we clear the framebuffer's content
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -269,13 +279,10 @@ int main()
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 
-		// Copy framebuffer to textureColorbuffer (because PGL doesn't support
-		// framebuffer/renderbuffer objects or render to texture in general yet)
-		glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, scr_width, scr_height, GL_RGBA, GL_UNSIGNED_BYTE, bbufpix);
-
 		// second render pass: draw as normal
 		// ----------------------------------
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -322,8 +329,12 @@ int main()
 	// ------------------------------------------------------------------------
 	glDeleteVertexArrays(1, &cubeVAO);
 	glDeleteVertexArrays(1, &planeVAO);
+	glDeleteVertexArrays(1, &quadVAO);
 	glDeleteBuffers(1, &cubeVBO);
 	glDeleteBuffers(1, &planeVBO);
+	glDeleteBuffers(1, &quadVBO);
+	glDeleteRenderbuffers(1, &rbo);
+	glDeleteFramebuffers(1, &framebuffer);
 
 	// SDL and PortableGL cleanup
 	// ------------------------------------------------------------------
@@ -369,6 +380,8 @@ bool handle_events()
 
 				glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+				glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, scr_width, scr_height);
 				break;
 			}
 			break;
