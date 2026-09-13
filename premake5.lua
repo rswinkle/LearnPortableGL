@@ -8,16 +8,18 @@ workspace "LearnPortableGL"
 	links { "SDL2" }
 	includedirs { "inc" }
 
-	--configuration "gmake"
-	--buildoptions { "-fno-rtti", "-fno-exceptions", "-Wall" }
+	--filter "action:gmake"
+	--	buildoptions { "-fno-rtti", "-fno-exceptions", "-Wall" }
 
-	configuration "Debug"
+	filter "configurations:Debug"
 		defines { "DEBUG" }
 		symbols "On"
 
-	configuration "Release"
+	filter "configurations:Release"
 		defines { "NDEBUG" }
 		optimize "Speed"
+
+	filter {}
 
 	printf("%s", _WORKING_DIR)
 

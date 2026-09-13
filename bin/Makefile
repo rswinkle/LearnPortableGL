@@ -65,8 +65,24 @@ ifeq ($(config),debug)
   4.10.2.asteroids_config = debug
   4.10.3.asteroids_instanced_config = debug
   4.11.1.anti_aliasing_msaa_config = debug
-endif
-ifeq ($(config),release)
+  5.1.advanced_lighting_config = debug
+  5.2.gamma_correction_config = debug
+  5.3.1.1.shadow_mapping_depth_config = debug
+  5.3.1.2.shadow_mapping_base_config = debug
+  5.3.1.3.shadow_mapping_config = debug
+  5.3.2.1.point_shadows_config = debug
+  5.3.2.2.point_shadows_soft_config = debug
+  5.4.normal_mapping_config = debug
+  5.5.1.parallax_mapping_config = debug
+  5.5.2.steep_parallax_mapping_config = debug
+  5.5.3.parallax_occlusion_mapping_config = debug
+  5.6.hdr_config = debug
+  5.7.bloom_config = debug
+  5.8.1.deferred_shading_config = debug
+  5.8.2.deferred_shading_volumes_config = debug
+  5.9.ssao_config = debug
+
+else ifeq ($(config),release)
   1.1.1.hello_window_config = release
   1.1.2.hello_window_clear_config = release
   1.2.1.hello_triangle_config = release
@@ -123,9 +139,28 @@ ifeq ($(config),release)
   4.10.2.asteroids_config = release
   4.10.3.asteroids_instanced_config = release
   4.11.1.anti_aliasing_msaa_config = release
+  5.1.advanced_lighting_config = release
+  5.2.gamma_correction_config = release
+  5.3.1.1.shadow_mapping_depth_config = release
+  5.3.1.2.shadow_mapping_base_config = release
+  5.3.1.3.shadow_mapping_config = release
+  5.3.2.1.point_shadows_config = release
+  5.3.2.2.point_shadows_soft_config = release
+  5.4.normal_mapping_config = release
+  5.5.1.parallax_mapping_config = release
+  5.5.2.steep_parallax_mapping_config = release
+  5.5.3.parallax_occlusion_mapping_config = release
+  5.6.hdr_config = release
+  5.7.bloom_config = release
+  5.8.1.deferred_shading_config = release
+  5.8.2.deferred_shading_volumes_config = release
+  5.9.ssao_config = release
+
+else
+  $(error "invalid configuration $(config)")
 endif
 
-PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.colors 2.2.1.basic_lighting_diffuse 2.2.2.basic_lighting_specular 2.2.3.basic_lighting_exercise1 2.2.4.basic_lighting_exercise2 2.2.5.basic_lighting_exercise3 2.3.1.materials 2.3.2.materials_exercise1 2.4.1.lighting_maps_diffuse 2.4.2.lighting_maps_specular 2.4.3.lighting_maps_exercise2 2.4.4.lighting_maps_exercise4 2.5.1.light_casters_directional 2.5.2.light_casters_point 2.5.3.light_casters_spot 2.5.4.light_casters_spot_soft 2.6.multiple_lights 3.1.model_loading 4.1.1.depth_testing 4.1.2.depth_testing_view 4.2.stencil_testing 4.3.1.blending_discard 4.3.2.blending_sorted 4.5.1.framebuffers 4.5.2.framebuffers_exercise1 4.6.1.cubemaps_skybox 4.6.2.cubemaps_environment_mapping 4.10.1.instancing_quads 4.10.2.asteroids 4.10.3.asteroids_instanced 4.11.1.anti_aliasing_msaa
+PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.colors 2.2.1.basic_lighting_diffuse 2.2.2.basic_lighting_specular 2.2.3.basic_lighting_exercise1 2.2.4.basic_lighting_exercise2 2.2.5.basic_lighting_exercise3 2.3.1.materials 2.3.2.materials_exercise1 2.4.1.lighting_maps_diffuse 2.4.2.lighting_maps_specular 2.4.3.lighting_maps_exercise2 2.4.4.lighting_maps_exercise4 2.5.1.light_casters_directional 2.5.2.light_casters_point 2.5.3.light_casters_spot 2.5.4.light_casters_spot_soft 2.6.multiple_lights 3.1.model_loading 4.1.1.depth_testing 4.1.2.depth_testing_view 4.2.stencil_testing 4.3.1.blending_discard 4.3.2.blending_sorted 4.5.1.framebuffers 4.5.2.framebuffers_exercise1 4.6.1.cubemaps_skybox 4.6.2.cubemaps_environment_mapping 4.10.1.instancing_quads 4.10.2.asteroids 4.10.3.asteroids_instanced 4.11.1.anti_aliasing_msaa 5.1.advanced_lighting 5.2.gamma_correction 5.3.1.1.shadow_mapping_depth 5.3.1.2.shadow_mapping_base 5.3.1.3.shadow_mapping 5.3.2.1.point_shadows 5.3.2.2.point_shadows_soft 5.4.normal_mapping 5.5.1.parallax_mapping 5.5.2.steep_parallax_mapping 5.5.3.parallax_occlusion_mapping 5.6.hdr 5.7.bloom 5.8.1.deferred_shading 5.8.2.deferred_shading_volumes 5.9.ssao
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -467,6 +502,102 @@ ifneq (,$(4.11.1.anti_aliasing_msaa_config))
 	@${MAKE} --no-print-directory -C . -f 4.11.1.anti_aliasing_msaa.make config=$(4.11.1.anti_aliasing_msaa_config)
 endif
 
+5.1.advanced_lighting:
+ifneq (,$(5.1.advanced_lighting_config))
+	@echo "==== Building 5.1.advanced_lighting ($(5.1.advanced_lighting_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.1.advanced_lighting.make config=$(5.1.advanced_lighting_config)
+endif
+
+5.2.gamma_correction:
+ifneq (,$(5.2.gamma_correction_config))
+	@echo "==== Building 5.2.gamma_correction ($(5.2.gamma_correction_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.2.gamma_correction.make config=$(5.2.gamma_correction_config)
+endif
+
+5.3.1.1.shadow_mapping_depth:
+ifneq (,$(5.3.1.1.shadow_mapping_depth_config))
+	@echo "==== Building 5.3.1.1.shadow_mapping_depth ($(5.3.1.1.shadow_mapping_depth_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.3.1.1.shadow_mapping_depth.make config=$(5.3.1.1.shadow_mapping_depth_config)
+endif
+
+5.3.1.2.shadow_mapping_base:
+ifneq (,$(5.3.1.2.shadow_mapping_base_config))
+	@echo "==== Building 5.3.1.2.shadow_mapping_base ($(5.3.1.2.shadow_mapping_base_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.3.1.2.shadow_mapping_base.make config=$(5.3.1.2.shadow_mapping_base_config)
+endif
+
+5.3.1.3.shadow_mapping:
+ifneq (,$(5.3.1.3.shadow_mapping_config))
+	@echo "==== Building 5.3.1.3.shadow_mapping ($(5.3.1.3.shadow_mapping_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.3.1.3.shadow_mapping.make config=$(5.3.1.3.shadow_mapping_config)
+endif
+
+5.3.2.1.point_shadows:
+ifneq (,$(5.3.2.1.point_shadows_config))
+	@echo "==== Building 5.3.2.1.point_shadows ($(5.3.2.1.point_shadows_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.3.2.1.point_shadows.make config=$(5.3.2.1.point_shadows_config)
+endif
+
+5.3.2.2.point_shadows_soft:
+ifneq (,$(5.3.2.2.point_shadows_soft_config))
+	@echo "==== Building 5.3.2.2.point_shadows_soft ($(5.3.2.2.point_shadows_soft_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.3.2.2.point_shadows_soft.make config=$(5.3.2.2.point_shadows_soft_config)
+endif
+
+5.4.normal_mapping:
+ifneq (,$(5.4.normal_mapping_config))
+	@echo "==== Building 5.4.normal_mapping ($(5.4.normal_mapping_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.4.normal_mapping.make config=$(5.4.normal_mapping_config)
+endif
+
+5.5.1.parallax_mapping:
+ifneq (,$(5.5.1.parallax_mapping_config))
+	@echo "==== Building 5.5.1.parallax_mapping ($(5.5.1.parallax_mapping_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.5.1.parallax_mapping.make config=$(5.5.1.parallax_mapping_config)
+endif
+
+5.5.2.steep_parallax_mapping:
+ifneq (,$(5.5.2.steep_parallax_mapping_config))
+	@echo "==== Building 5.5.2.steep_parallax_mapping ($(5.5.2.steep_parallax_mapping_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.5.2.steep_parallax_mapping.make config=$(5.5.2.steep_parallax_mapping_config)
+endif
+
+5.5.3.parallax_occlusion_mapping:
+ifneq (,$(5.5.3.parallax_occlusion_mapping_config))
+	@echo "==== Building 5.5.3.parallax_occlusion_mapping ($(5.5.3.parallax_occlusion_mapping_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.5.3.parallax_occlusion_mapping.make config=$(5.5.3.parallax_occlusion_mapping_config)
+endif
+
+5.6.hdr:
+ifneq (,$(5.6.hdr_config))
+	@echo "==== Building 5.6.hdr ($(5.6.hdr_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.6.hdr.make config=$(5.6.hdr_config)
+endif
+
+5.7.bloom:
+ifneq (,$(5.7.bloom_config))
+	@echo "==== Building 5.7.bloom ($(5.7.bloom_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.7.bloom.make config=$(5.7.bloom_config)
+endif
+
+5.8.1.deferred_shading:
+ifneq (,$(5.8.1.deferred_shading_config))
+	@echo "==== Building 5.8.1.deferred_shading ($(5.8.1.deferred_shading_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.8.1.deferred_shading.make config=$(5.8.1.deferred_shading_config)
+endif
+
+5.8.2.deferred_shading_volumes:
+ifneq (,$(5.8.2.deferred_shading_volumes_config))
+	@echo "==== Building 5.8.2.deferred_shading_volumes ($(5.8.2.deferred_shading_volumes_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.8.2.deferred_shading_volumes.make config=$(5.8.2.deferred_shading_volumes_config)
+endif
+
+5.9.ssao:
+ifneq (,$(5.9.ssao_config))
+	@echo "==== Building 5.9.ssao ($(5.9.ssao_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 5.9.ssao.make config=$(5.9.ssao_config)
+endif
+
 clean:
 	@${MAKE} --no-print-directory -C . -f 1.1.1.hello_window.make clean
 	@${MAKE} --no-print-directory -C . -f 1.1.2.hello_window_clear.make clean
@@ -524,6 +655,22 @@ clean:
 	@${MAKE} --no-print-directory -C . -f 4.10.2.asteroids.make clean
 	@${MAKE} --no-print-directory -C . -f 4.10.3.asteroids_instanced.make clean
 	@${MAKE} --no-print-directory -C . -f 4.11.1.anti_aliasing_msaa.make clean
+	@${MAKE} --no-print-directory -C . -f 5.1.advanced_lighting.make clean
+	@${MAKE} --no-print-directory -C . -f 5.2.gamma_correction.make clean
+	@${MAKE} --no-print-directory -C . -f 5.3.1.1.shadow_mapping_depth.make clean
+	@${MAKE} --no-print-directory -C . -f 5.3.1.2.shadow_mapping_base.make clean
+	@${MAKE} --no-print-directory -C . -f 5.3.1.3.shadow_mapping.make clean
+	@${MAKE} --no-print-directory -C . -f 5.3.2.1.point_shadows.make clean
+	@${MAKE} --no-print-directory -C . -f 5.3.2.2.point_shadows_soft.make clean
+	@${MAKE} --no-print-directory -C . -f 5.4.normal_mapping.make clean
+	@${MAKE} --no-print-directory -C . -f 5.5.1.parallax_mapping.make clean
+	@${MAKE} --no-print-directory -C . -f 5.5.2.steep_parallax_mapping.make clean
+	@${MAKE} --no-print-directory -C . -f 5.5.3.parallax_occlusion_mapping.make clean
+	@${MAKE} --no-print-directory -C . -f 5.6.hdr.make clean
+	@${MAKE} --no-print-directory -C . -f 5.7.bloom.make clean
+	@${MAKE} --no-print-directory -C . -f 5.8.1.deferred_shading.make clean
+	@${MAKE} --no-print-directory -C . -f 5.8.2.deferred_shading_volumes.make clean
+	@${MAKE} --no-print-directory -C . -f 5.9.ssao.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -591,5 +738,21 @@ help:
 	@echo "   4.10.2.asteroids"
 	@echo "   4.10.3.asteroids_instanced"
 	@echo "   4.11.1.anti_aliasing_msaa"
+	@echo "   5.1.advanced_lighting"
+	@echo "   5.2.gamma_correction"
+	@echo "   5.3.1.1.shadow_mapping_depth"
+	@echo "   5.3.1.2.shadow_mapping_base"
+	@echo "   5.3.1.3.shadow_mapping"
+	@echo "   5.3.2.1.point_shadows"
+	@echo "   5.3.2.2.point_shadows_soft"
+	@echo "   5.4.normal_mapping"
+	@echo "   5.5.1.parallax_mapping"
+	@echo "   5.5.2.steep_parallax_mapping"
+	@echo "   5.5.3.parallax_occlusion_mapping"
+	@echo "   5.6.hdr"
+	@echo "   5.7.bloom"
+	@echo "   5.8.1.deferred_shading"
+	@echo "   5.8.2.deferred_shading_volumes"
+	@echo "   5.9.ssao"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"

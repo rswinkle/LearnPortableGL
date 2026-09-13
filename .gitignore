@@ -40,3 +40,5 @@ bin/*
 *.tgz
 *.tar
 
+scratch/*
+
