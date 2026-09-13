@@ -344,9 +344,10 @@ RENDER TARGETS / FBOs
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                GL_TEXTURE_2D, color_tex, 0);
-        // optional:
+        // optional depth (and stencil; see below):
         // glFramebufferTexture2D(..., GL_DEPTH_ATTACHMENT, ..., depth_tex, 0);
-        // glFramebufferRenderbuffer(..., GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb);
+        // glRenderbufferStorage(..., GL_DEPTH24_STENCIL8, w, h); // PGL_D24S8
+        // glFramebufferRenderbuffer(..., GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb);
         glCheckFramebufferStatus(GL_FRAMEBUFFER); // GL_FRAMEBUFFER_COMPLETE
         // draw...
         glBindFramebuffer(GL_FRAMEBUFFER, 0);     // present default FB
@@ -359,6 +360,12 @@ RENDER TARGETS / FBOs
     else GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER / _READ_BUFFER. Drawing or reading
     an incomplete FBO yields GL_INVALID_FRAMEBUFFER_OPERATION.
 
+    Rasterization and glClear clip to the bound framebuffer size, not the
+    viewport. glViewport only sets the NDC mapping. glBindFramebuffer (and
+    pglResizeFramebuffer / pglSetBackBuffer) refresh that clip to the current
+    draw surface; if GL_SCISSOR_TEST is enabled, the scissor box is intersected
+    with it. glScissor without GL_SCISSOR_TEST does not clip.
+
     Texture origin (invert_y)
     -------------------------
     Uploaded assets sample with linear indexing (y=0 = first row of data).
@@ -368,10 +375,35 @@ RENDER TARGETS / FBOs
 
     Depth / stencil / renderbuffers
     -------------------------------
-    Depth: texture (GL_DEPTH_COMPONENT) or renderbuffer; sample depth textures in
-    .r (float store as-is; integer pack normalized). Float depth attachments use
-    float depth compares. Stencil: packed with D24S8 depth or a stencil
-    renderbuffer where enabled at compile time.
+    Depth attaches as a texture (GL_DEPTH_COMPONENT*) or a renderbuffer. Sample
+    depth textures in .r (float store as-is; integer pack normalized by
+    PGL_MAX_Z). GL_DEPTH_COMPONENT32F / GL_FLOAT attachments use float compares.
+
+    Integer depth bit depth in the GL enum is ignored. GL_DEPTH_COMPONENT and
+    GL_DEPTH_COMPONENT16/24/32 all allocate and pack according to the compile-
+    time setting (PGL_D24S8 or PGL_D16), not the 16/24/32 in the name. That
+    packing is global: the same depth/stencil macros are used for the window
+    buffer and FBO integer depth. GL_DEPTH32F_STENCIL8 is not accepted
+    (porting alias only). Packed DS textures are not supported; use a
+    renderbuffer, or a depth-only texture if you need to sample depth.
+
+    Stencil follows that same compile-time packing:
+
+    PGL_D24S8 (default): stencil is the low 8 bits of the integer depth u32.
+    glRenderbufferStorage(..., GL_DEPTH24_STENCIL8, w, h) allocates that packed
+    format (same 4 bytes as integer GL_DEPTH_COMPONENT*). Attach it as
+    GL_DEPTH_STENCIL_ATTACHMENT (or the same object to both DEPTH and STENCIL).
+    GL_DEPTH_COMPONENT* renderbuffers still pack stencil in the same word if
+    attached that way; GL_DEPTH24_STENCIL8 is the format that matches real GL
+    ports. Do not allocate a separate GL_STENCIL_INDEX8 renderbuffer — a
+    separate STENCIL8 RB is not used as the FBO stencil surface on this build.
+    GL_DEPTH24_STENCIL8 is GL_INVALID_ENUM if compiled with PGL_D16. Float
+    depth occupies the whole word, so packed stencil does not apply to
+    GL_DEPTH_COMPONENT32F.
+
+    PGL_D16: 16-bit depth cannot hold stencil. Create a separate
+    GL_STENCIL_INDEX8 renderbuffer and attach it to GL_STENCIL_ATTACHMENT.
+    PGL_NO_STENCIL / PGL_NO_DEPTH_NO_STENCIL: stencil attach is an error.
 
     Readback
     --------
@@ -2858,19 +2890,21 @@ enum
 	GL_COMPRESSED_RGBA,
 	//lots more go here but not important
 
-	// None of these are used currently just to help porting
-	GL_DEPTH_COMPONENT, // generic depth (texture format / RB internalformat)
+	// Depth/stencil: texture format and/or RB internalformat.
+	// Integer 16/24/32: storage and packing follow the compile-time
+	// format (PGL_D24S8 or PGL_D16), not the bit depth in the name.
+	GL_DEPTH_COMPONENT,
 	GL_DEPTH_COMPONENT16,
 	GL_DEPTH_COMPONENT24,
 	GL_DEPTH_COMPONENT32,
-	GL_DEPTH_COMPONENT32F, // PGL uses a float depth buffer
+	GL_DEPTH_COMPONENT32F, // float32 depth; not packed with stencil
 
-	GL_DEPTH24_STENCIL8,
-	GL_DEPTH32F_STENCIL8,  // <- we do this
+	GL_DEPTH24_STENCIL8,  // RB internalformat when PGL_D24S8
+	GL_DEPTH32F_STENCIL8, // not accepted (porting alias)
 
 	GL_STENCIL_INDEX1,
 	GL_STENCIL_INDEX4,
-	GL_STENCIL_INDEX8,   // this
+	GL_STENCIL_INDEX8,   // stencil-only RB; use with PGL_D16, not packed D24S8
 	GL_STENCIL_INDEX16,
 
 	
@@ -3346,7 +3380,7 @@ typedef struct glFBO
 {
 	glFBO_Attachment color[GL_MAX_COLOR_ATTACHMENTS];
 	glFBO_Attachment depth;
-	glFBO_Attachment stencil; // RB or packed with depth (D24S8)
+	glFBO_Attachment stencil; // packed with integer D24S8 depth, or separate RB on PGL_D16
 
 	// Draw/read buffer state is per-framebuffer (GL 3+).
 	GLenum draw_buffers[GL_MAX_DRAW_BUFFERS];
@@ -7098,6 +7132,7 @@ static void draw_triangle_final(glVertex* v0, glVertex* v1, glVertex* v2, unsign
 static void draw_triangle(glVertex* v0, glVertex* v1, glVertex* v2, unsigned int provoke);
 
 static void draw_line_clip(glVertex* v1, glVertex* v2);
+static void pgl_update_clip_rect(void);
 
 // This is the prototype for either implementation; only one is defined based on
 // whether PGL_BETTER_THICK_LINES is defined
@@ -7115,6 +7150,26 @@ static void draw_aa_line(vec3 hp1, vec3 hp2, float w1, float w2, float* v1_out, 
 #define CLIPY_TEST(y) (y >= c->ly && y < c->uy)
 #define CLIPXY_TEST(x, y) (x >= c->lx && x < c->ux && y >= c->ly && y < c->uy)
 
+// Always-on raster clip to the current draw surface (not the viewport).
+// If GL_SCISSOR_TEST is on, intersect with the scissor box.
+static void pgl_update_clip_rect(void)
+{
+	GLsizei w = c->back_buffer.w;
+	GLsizei h = c->back_buffer.h;
+	if (c->scissor_test) {
+		int ux = c->scissor_lx + c->scissor_w;
+		int uy = c->scissor_ly + c->scissor_h;
+		c->lx = MAX(c->scissor_lx, 0);
+		c->ly = MAX(c->scissor_ly, 0);
+		c->ux = MIN(ux, w);
+		c->uy = MIN(uy, h);
+	} else {
+		c->lx = 0;
+		c->ly = 0;
+		c->ux = w;
+		c->uy = h;
+	}
+}
 
 static inline int gl_clipcode(vec4 pt)
 {
@@ -10168,6 +10223,8 @@ PGLDEF void free_glContext(glContext* ctx)
 		ctx->zbuf = ctx->window_zbuf;
 #  if defined(PGL_D16) && !defined(PGL_NO_STENCIL)
 		ctx->stencil_buf = ctx->window_stencil_buf;
+#  elif defined(PGL_D24S8)
+		ctx->stencil_buf = ctx->window_zbuf;
 #  endif
 #endif
 		ctx->fbo_redirected = GL_FALSE;
@@ -10321,20 +10378,7 @@ PGLDEF GLboolean pglResizeFramebuffer(GLsizei w, GLsizei h)
 #endif
 #endif
 
-	if (c->scissor_test) {
-		int ux = c->scissor_lx+c->scissor_w;
-		int uy = c->scissor_ly+c->scissor_h;
-
-		c->lx = MAX(c->scissor_lx, 0);
-		c->ly = MAX(c->scissor_ly, 0);
-		c->ux = MIN(ux, w);
-		c->uy = MIN(uy, h);
-	} else {
-		c->lx = 0;
-		c->ly = 0;
-		c->ux = w;
-		c->uy = h;
-	}
+	pgl_update_clip_rect();
 
 	return GL_TRUE;
 }
@@ -12109,15 +12153,10 @@ PGLDEF void glEnable(GLenum cap)
 	case GL_POLYGON_OFFSET_FILL:
 		c->poly_offset_fill = GL_TRUE;
 		break;
-	case GL_SCISSOR_TEST: {
+	case GL_SCISSOR_TEST:
 		c->scissor_test = GL_TRUE;
-		int ux = c->scissor_lx+c->scissor_w;
-		int uy = c->scissor_ly+c->scissor_h;
-		c->lx = MAX(c->scissor_lx, 0);
-		c->ly = MAX(c->scissor_ly, 0);
-		c->ux = MIN(ux, c->back_buffer.w);
-		c->uy = MIN(uy, c->back_buffer.h);
-	} break;
+		pgl_update_clip_rect();
+		break;
 	case GL_STENCIL_TEST:
 #ifndef PGL_NO_STENCIL
 		c->stencil_test = GL_TRUE;
@@ -12163,10 +12202,7 @@ PGLDEF void glDisable(GLenum cap)
 		break;
 	case GL_SCISSOR_TEST:
 		c->scissor_test = GL_FALSE;
-		c->lx = 0;
-		c->ly = 0;
-		c->ux = c->back_buffer.w;
-		c->uy = c->back_buffer.h;
+		pgl_update_clip_rect();
 		break;
 	case GL_STENCIL_TEST:
 #ifndef PGL_NO_STENCIL
@@ -12597,13 +12633,7 @@ PGLDEF void glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 	c->scissor_ly = y;
 	c->scissor_w = width;
 	c->scissor_h = height;
-	int ux = x+width;
-	int uy = y+height;
-
-	c->lx = MAX(x, 0);
-	c->ly = MAX(y, 0);
-	c->ux = MIN(ux, c->back_buffer.w);
-	c->uy = MIN(uy, c->back_buffer.h);
+	pgl_update_clip_rect();
 }
 
 #ifndef PGL_NO_STENCIL
@@ -12936,7 +12966,8 @@ static GLboolean pgl_rb_ok_depth(const glRenderbuffer* rb)
 	       rb->internalformat == GL_DEPTH_COMPONENT16 ||
 	       rb->internalformat == GL_DEPTH_COMPONENT24 ||
 	       rb->internalformat == GL_DEPTH_COMPONENT32 ||
-	       rb->internalformat == GL_DEPTH_COMPONENT32F;
+	       rb->internalformat == GL_DEPTH_COMPONENT32F ||
+	       rb->internalformat == GL_DEPTH24_STENCIL8;
 }
 
 static GLenum pgl_fbo_compute_status(glFBO* f)
@@ -13197,6 +13228,8 @@ static void pgl_apply_draw_framebuffer(void)
 			c->zbuf = c->window_zbuf;
 #  if defined(PGL_D16) && !defined(PGL_NO_STENCIL)
 			c->stencil_buf = c->window_stencil_buf;
+#  elif defined(PGL_D24S8)
+			c->stencil_buf = c->window_zbuf;
 #  endif
 #endif
 			c->fbo_redirected = GL_FALSE;
@@ -13213,6 +13246,7 @@ static void pgl_apply_draw_framebuffer(void)
 		c->read_buffer = c->default_read_buffer;
 		for (int i = 0; i < GL_MAX_COLOR_ATTACHMENTS; ++i)
 			memset(&c->mrt_color[i], 0, sizeof(c->mrt_color[i]));
+		pgl_update_clip_rect();
 		return;
 	}
 
@@ -13305,6 +13339,7 @@ static void pgl_apply_draw_framebuffer(void)
 	}
 #  endif
 #endif
+	pgl_update_clip_rect();
 }
 
 static void pgl_fbo_mark_dirty(glFBO* f)
@@ -13546,6 +13581,7 @@ static void pgl_init_rb(glRenderbuffer* rb)
 	rb->user_owned = GL_FALSE;
 }
 
+// TODO move to gl_impl
 PGLDEF void glGenRenderbuffers(GLsizei n, GLuint* renderbuffers)
 {
 	PGL_ERR(n < 0, GL_INVALID_VALUE);
@@ -13618,7 +13654,12 @@ PGLDEF void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei 
 	        internalformat != GL_DEPTH_COMPONENT24 &&
 	        internalformat != GL_DEPTH_COMPONENT32 &&
 	        internalformat != GL_DEPTH_COMPONENT32F &&
+	        internalformat != GL_DEPTH24_STENCIL8 &&
 	        internalformat != GL_STENCIL_INDEX8, GL_INVALID_ENUM);
+	// Packed DS is the D24S8 integer layout; D16 has no room in the depth word.
+#if !defined(PGL_D24S8)
+	PGL_ERR(internalformat == GL_DEPTH24_STENCIL8, GL_INVALID_ENUM);
+#endif
 
 	glRenderbuffer* rb = &c->renderbuffers.a[c->bound_renderbuffer];
 	size_t bpp = pgl_z_bytes_per_pixel();
@@ -13626,6 +13667,8 @@ PGLDEF void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei 
 		bpp = sizeof(float);
 	else if (internalformat == GL_STENCIL_INDEX8)
 		bpp = 1;
+	else if (internalformat == GL_DEPTH24_STENCIL8)
+		bpp = sizeof(u32);
 	else if (!bpp)
 		bpp = sizeof(u32);
 
@@ -15521,8 +15564,10 @@ PGLDEF void pglSetBackBuffer(GLvoid* backbuf, GLsizei w, GLsizei h, GLboolean us
 	bb->h = h;
 	bb->buf = (u8*)backbuf;
 	bb->lastrow = bb->buf + (h-1)*w*sizeof(pix_t);
-	if (!c->fbo_redirected)
+	if (!c->fbo_redirected) {
 		c->back_buffer = *bb;
+		pgl_update_clip_rect();
+	}
 
 	c->user_alloced_backbuf = user_owned;
 }

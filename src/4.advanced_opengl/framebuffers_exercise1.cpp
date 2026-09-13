@@ -43,8 +43,10 @@ void screen_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 
 // settings
-unsigned int scr_width = 640;
-unsigned int scr_height = 480;
+const unsigned int fbo_width = 640;
+const unsigned int fbo_height = 480;
+unsigned int scr_width = fbo_width;
+unsigned int scr_height = fbo_height;
 
 // camera
 Camera camera(vec3(0.0f, 0.0f, 3.0f));
@@ -62,10 +64,6 @@ pix_t* bbufpix;
 glContext the_Context;
 
 My_Uniforms uniforms;
-
-unsigned int framebuffer;
-unsigned int textureColorbuffer;
-unsigned int rbo;
 
 int main()
 {
@@ -148,9 +146,6 @@ int main()
 		 5.0f, -0.5f, -5.0f,  2.0f, 2.0f
 	};
 
-	// FBO color attachments are marked invert_y, so y=0 is the bottom of the
-	// rendered image (same as OpenGL). The original 5.2 quad had y=0 at the
-	// top; with a real FBO that would flip the mirror vertically.
 	float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates. NOTE that this plane is now much smaller and at the top of the screen
 		// positions   // texCoords
 		-0.3f,  1.0f,  0.0f, 1.0f,
@@ -205,22 +200,24 @@ int main()
 
 	// framebuffer configuration
 	// -------------------------
+	unsigned int framebuffer;
 	glGenFramebuffers(1, &framebuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 	// create a color attachment texture
+	unsigned int textureColorbuffer;
 	glGenTextures(1, &textureColorbuffer);
 	glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fbo_width, fbo_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL); // NOTE: always stored as RGBA regardless
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
-	// create a renderbuffer object for depth attachment (we won't be sampling this).
-	// PGL does not accept GL_DEPTH24_STENCIL8 as a renderbuffer format; depth-only
-	// GL_DEPTH_COMPONENT24 is the equivalent for this demo.
+	// create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
+	unsigned int rbo;
 	glGenRenderbuffers(1, &rbo);
 	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, scr_width, scr_height);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbo_width, fbo_height); // use a single renderbuffer object for both a depth AND stencil buffer.
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+	// now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -249,6 +246,7 @@ int main()
 		// bind to framebuffer and draw scene as we normally would to color texture
 		// ------------------------------------------------------------------------
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glViewport(0, 0, fbo_width, fbo_height); // FBO size is fixed; original only sets viewport to the window
 		glEnable(GL_DEPTH_TEST); // enable depth testing (is disabled for rendering screen-space quad)
 
 		// make sure we clear the framebuffer's content
@@ -262,7 +260,7 @@ int main()
 		uniforms.view = camera.GetViewMatrix();
 		camera.Yaw   -= 180.0f; // reset it back to its original orientation
 		camera.ProcessMouseMovement(0, 0, true); 
-		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
+		uniforms.projection = perspective(radians(camera.Zoom), (float)fbo_width / (float)fbo_height, 0.1f, 100.0f);
 
 		// cubes
 		glBindVertexArray(cubeVAO);
@@ -282,6 +280,7 @@ int main()
 		// second render pass: draw as normal
 		// ----------------------------------
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, scr_width, scr_height); // restore window viewport for the scene and mirror quad
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -289,6 +288,7 @@ int main()
 		glUseProgram(shader);
 		model = mat4(1.0f);
 		uniforms.view = camera.GetViewMatrix();
+		uniforms.projection = perspective(radians(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.0f);
 
 		// cubes
 		glBindVertexArray(cubeVAO);
@@ -377,11 +377,6 @@ bool handle_events()
 				glViewport(0, 0, scr_width, scr_height);
 				SDL_DestroyTexture(tex);
 				tex = SDL_CreateTexture(ren, PIX_FORMAT, SDL_TEXTUREACCESS_STREAMING, scr_width, scr_height);
-
-				glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-				glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, scr_width, scr_height);
 				break;
 			}
 			break;
