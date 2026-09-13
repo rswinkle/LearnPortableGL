@@ -59,8 +59,11 @@ const unsigned int fbo_width = 640;
 const unsigned int fbo_height = 480;
 unsigned int scr_width = fbo_width;
 unsigned int scr_height = fbo_height;
-const unsigned int SHADOW_WIDTH = 256;
-const unsigned int SHADOW_HEIGHT = 256;
+#ifndef NDEBUG
+const unsigned int SHADOW_WIDTH = 256, SHADOW_HEIGHT = 256;
+#else
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+#endif
 bool shadows = true;
 
 Camera camera(vec3(0.0f, 0.0f, 3.0f));
@@ -100,13 +103,6 @@ int main()
 
 	unsigned int woodTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str());
 
-	unsigned int dummyColor;
-	glGenTextures(1, &dummyColor);
-	glBindTexture(GL_TEXTURE_2D, dummyColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
 	unsigned int depthMaps[6];
 	glGenTextures(6, depthMaps);
 	for (int i = 0; i < 6; ++i) {
@@ -122,10 +118,8 @@ int main()
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dummyColor, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMaps[0], 0);
-	GLenum none = GL_NONE;
-	glDrawBuffers(1, &none);
+	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		std::cout << "ERROR::FRAMEBUFFER:: Depth framebuffer is not complete!" << std::endl;

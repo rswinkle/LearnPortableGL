@@ -55,7 +55,11 @@ vec4 toglm(pgl_vec4 v);
 unsigned int scr_width = 640;
 unsigned int scr_height = 480;
 // 256 instead of original 1024; software rasterizer
+#ifndef NDEBUG
 const unsigned int SHADOW_WIDTH = 256, SHADOW_HEIGHT = 256;
+#else
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+#endif
 
 // camera
 Camera camera(vec3(0.0f, 0.0f, 3.0f));
@@ -135,21 +139,10 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	// PGL: depth-only FBOs are incomplete. Attach a dummy RGBA color texture
-	// of the same size, then disable color draw/read (PGL has no glDrawBuffer).
-	unsigned int dummyColor;
-	glGenTextures(1, &dummyColor);
-	glBindTexture(GL_TEXTURE_2D, dummyColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
+	// attach depth texture as FBO's depth buffer
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dummyColor, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
-	GLenum none = GL_NONE;
-	glDrawBuffers(1, &none);
+	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
