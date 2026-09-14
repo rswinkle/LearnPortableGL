@@ -20,9 +20,8 @@
 
 using namespace glm;
 
-// PGL cannot attach cubemap faces or run a geometry shader, so the original
-// depth cubemap is six 2D depth textures, one pass per face. Soft shadows
-// use 3x3 PCF on the selected 2D face (original used 20 cubemap taps).
+// No geometry shader / layered glFramebufferTexture: one lookAt pass per
+// cubemap face. Soft shadows use the original 20-tap cubemap disk.
 
 struct My_Uniforms
 {
@@ -32,7 +31,7 @@ struct My_Uniforms
 	mat4 shadowMatrix;
 
 	GLuint tex;
-	GLuint depthMaps[6];
+	GLuint depthCubemap;
 
 	vec3 lightPos;
 	vec3 viewPos;
@@ -54,7 +53,6 @@ void depth_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* built
 void depth_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 vec4 toglm(pgl_vec4 v);
-void cubemapFaceUV(vec3 v, int* face, vec2* uv);
 
 const unsigned int fbo_width = 640;
 const unsigned int fbo_height = 480;
@@ -104,22 +102,20 @@ int main()
 
 	unsigned int woodTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str());
 
-	unsigned int depthMaps[6];
-	glGenTextures(6, depthMaps);
-	for (int i = 0; i < 6; ++i) {
-		glBindTexture(GL_TEXTURE_2D, depthMaps[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		uniforms.depthMaps[i] = depthMaps[i];
-	}
-
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
+	unsigned int depthCubemap;
+	glGenTextures(1, &depthCubemap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+	for (unsigned int i = 0; i < 6; ++i)
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMaps[0], 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, depthCubemap, 0);
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -127,6 +123,7 @@ int main()
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	uniforms.tex = woodTexture;
+	uniforms.depthCubemap = depthCubemap;
 	uniforms.shadows = shadows;
 	vec3 lightPos(0.0f, 0.0f, 0.0f);
 
@@ -158,7 +155,7 @@ int main()
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 		glUseProgram(depthShader);
 		for (int face = 0; face < 6; ++face) {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMaps[face], 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, depthCubemap, 0);
 			glClear(GL_DEPTH_BUFFER_BIT);
 			uniforms.shadowMatrix = shadowTransforms[face];
 			renderScene();
@@ -286,27 +283,6 @@ void renderCube()
 	glBindVertexArray(0);
 }
 
-void cubemapFaceUV(vec3 v, int* face, vec2* uv)
-{
-	vec3 a = abs(v);
-	float ma;
-	vec2 st;
-	if (a.x >= a.y && a.x >= a.z) {
-		if (v.x > 0.0f) { *face = 0; st = vec2(-v.z, -v.y); }
-		else            { *face = 1; st = vec2( v.z, -v.y); }
-		ma = a.x;
-	} else if (a.y >= a.z) {
-		if (v.y > 0.0f) { *face = 2; st = vec2(v.x,  v.z); }
-		else            { *face = 3; st = vec2(v.x, -v.z); }
-		ma = a.y;
-	} else {
-		if (v.z > 0.0f) { *face = 4; st = vec2( v.x, -v.y); }
-		else            { *face = 5; st = vec2(-v.x, -v.y); }
-		ma = a.z;
-	}
-	*uv = 0.5f * (st / ma + 1.0f);
-}
-
 vec4 toglm(pgl_vec4 v)
 {
 	return vec4(v.x, v.y, v.z, v.w);
@@ -364,21 +340,27 @@ void lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 
 	float shadow = 0.0f;
 	if (u->shadows) {
+		static const vec3 gridSamplingDisk[20] = {
+			vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1),
+			vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+			vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+			vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+			vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+		};
 		vec3 fragToLight = FragPos - u->lightPos;
-		int face;
-		vec2 uv;
-		cubemapFaceUV(fragToLight, &face, &uv);
 		float currentDepth = length(fragToLight);
 		float bias = 0.15f;
-		float texel = 1.0f / (float)SHADOW_WIDTH;
-		for (int x = -1; x <= 1; ++x) {
-			for (int y = -1; y <= 1; ++y) {
-				float closestDepth = texture2D(u->depthMaps[face], uv.x + x * texel, uv.y + y * texel).x * u->far_plane;
-				if (currentDepth - bias > closestDepth)
-					shadow += 1.0f;
-			}
+		int samples = 20;
+		float viewDistance = length(u->viewPos - FragPos);
+		float diskRadius = (1.0f + (viewDistance / u->far_plane)) / 25.0f;
+		for (int i = 0; i < samples; ++i) {
+			vec3 dir = fragToLight + gridSamplingDisk[i] * diskRadius;
+			float closestDepth = toglm(texture_cubemap(u->depthCubemap, dir.x, dir.y, dir.z)).r;
+			closestDepth *= u->far_plane;
+			if (currentDepth - bias > closestDepth)
+				shadow += 1.0f;
 		}
-		shadow /= 9.0f;
+		shadow /= (float)samples;
 	}
 
 	vec3 lighting = (ambient + (1.0f - shadow) * (diffuse + specular)) * color;

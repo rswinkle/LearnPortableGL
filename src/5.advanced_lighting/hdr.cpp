@@ -94,13 +94,12 @@ int main()
 
 	unsigned int woodTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str(), true);
 
-	// floating point framebuffer (RGBA32F; PGL has no GL_RGBA16F)
 	unsigned int hdrFBO;
 	glGenFramebuffers(1, &hdrFBO);
 	unsigned int colorBuffer;
 	glGenTextures(1, &colorBuffer);
 	glBindTexture(GL_TEXTURE_2D, colorBuffer);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbo_width, fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, fbo_width, fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	unsigned int rboDepth;

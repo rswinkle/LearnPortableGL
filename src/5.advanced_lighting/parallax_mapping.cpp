@@ -279,14 +279,14 @@ bool handle_events()
 
 	if (state[SDL_SCANCODE_Q]) {
 		if (heightScale > 0.0f) {
-			heightScale -= 0.0005f;
+			heightScale -= 0.005f;
 			if (heightScale < 0.0f)
 				heightScale = 0.0f;
 			std::cout << "heightScale: " << heightScale << std::endl;
 		}
 	} else if (state[SDL_SCANCODE_E]) {
 		if (heightScale < 1.0f) {
-			heightScale += 0.0005f;
+			heightScale += 0.005f;
 			if (heightScale > 1.0f)
 				heightScale = 1.0f;
 			std::cout << "heightScale: " << heightScale << std::endl;

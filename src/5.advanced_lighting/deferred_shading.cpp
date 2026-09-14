@@ -38,8 +38,6 @@ struct Lighting_Uniforms
 	float lightLinear[NR_LIGHTS];
 	float lightQuadratic[NR_LIGHTS];
 	vec3 viewPos;
-	mat4 view;
-	mat4 projection;
 };
 
 struct LightBox_Uniforms
@@ -96,7 +94,7 @@ int main()
 	pglSetUniform(&gbufUniforms);
 
 	GLenum qSmooth[] = { PGL_SMOOTH2 };
-	GLuint lightingShader = pglCreateProgram(lighting_vs, lighting_fs, 2, qSmooth, GL_TRUE);
+	GLuint lightingShader = pglCreateProgram(lighting_vs, lighting_fs, 2, qSmooth, GL_FALSE);
 	glUseProgram(lightingShader);
 	pglSetUniform(&lightingUniforms);
 
@@ -117,14 +115,14 @@ int main()
 	unsigned int gPosition, gNormal, gAlbedoSpec;
 	glGenTextures(1, &gPosition);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbo_width, fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, fbo_width, fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
 
 	glGenTextures(1, &gNormal);
 	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbo_width, fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, fbo_width, fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
@@ -196,9 +194,12 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glUseProgram(lightingShader);
 		lightingUniforms.viewPos = camera.Position;
-		lightingUniforms.view = view;
-		lightingUniforms.projection = projection;
 		renderQuad();
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBlitFramebuffer(0, 0, fbo_width, fbo_height, 0, 0, scr_width, scr_height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		glUseProgram(lightBoxShader);
 		lightBoxUniforms.projection = projection;
@@ -364,14 +365,6 @@ void lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 		lighting += (diffuse + specular) * attenuation;
 	}
 	*(vec4*)&builtins->gl_FragColor = vec4(lighting, 1.0f);
-
-	// glBlitFramebuffer is a stub; reconstruct scene depth so light boxes occlude.
-	if (length(Normal) < 0.01f)
-		builtins->gl_FragDepth = 1.0f;
-	else {
-		vec4 clip = u->projection * u->view * vec4(FragPos, 1.0f);
-		builtins->gl_FragDepth = clip.z / clip.w * 0.5f + 0.5f;
-	}
 }
 
 void lightbox_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
