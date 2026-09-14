@@ -14,6 +14,7 @@ workspace "LearnPortableGL"
 	filter "configurations:Debug"
 		defines { "DEBUG" }
 		symbols "On"
+		optimize "On"
 
 	filter "configurations:Release"
 		defines { "NDEBUG" }

@@ -47,8 +47,8 @@ endef
 ifeq ($(config),debug)
 OBJDIR = obj/Debug/1.6.3.coordinate_systems_multiple
 DEFINES += -DDEBUG
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -g
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -g
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -g
 ALL_LDFLAGS += $(LDFLAGS)
 
 else ifeq ($(config),release)

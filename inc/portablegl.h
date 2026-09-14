@@ -45,7 +45,8 @@ QUICK NOTES:
     performance or the the entirety of OpenGL or Vulkan features.
 
     For textures, color storage is GL_UNSIGNED_BYTE (RGBA8 after upload) or
-    GL_FLOAT (R32F / RG32F / RGBA32F; no RGB32F). Both glTexImage* (PGL-owned
+    GL_FLOAT (R32F / RG32F / RGBA32F; no RGB32F). GL_RGBA16F is an alias of
+    GL_RGBA32F (still 4x float32). Both glTexImage* (PGL-owned
     copy) and pglTexImage* / pglTextureImage* (map user memory) accept that
     matrix for 1D/2D/3D; cubemaps remain U8 RGBA only. Float images are level 0
     only for now (mip-chain helpers are still RGBA8-centric). glTexImage* with
@@ -331,8 +332,13 @@ RENDER TARGETS / FBOs
     Window vs offscreen
     -------------------
     - Default framebuffer 0 color = pix_t (for present / SDL / etc.).
+      Mono, one buffer: glDrawBuffer(s) accept BACK, FRONT, LEFT, FRONT_LEFT,
+      BACK_LEFT, and FRONT_AND_BACK as that buffer. RIGHT / FRONT_RIGHT /
+      BACK_RIGHT are GL_INVALID_OPERATION (no stereo). COLOR_ATTACHMENTi is
+      GL_INVALID_ENUM on the default FB. glReadBuffer is the same except
+      FRONT_AND_BACK is not a single source (GL_INVALID_ENUM).
     - FBO color attachments = texture memory: tightly packed RGBA8 (Color) or
-      float R32F / RG32F / RGBA32F (no RGB32F), created with glTexImage* or
+      float R32F / RG32F / RGBA32F (no RGB32F; GL_RGBA16F aliases RGBA32F), created with glTexImage* or
       mapped with pglTexImage* / pglTextureImage*. Draw and sample use that layout.
     - RGB565 (or other 16-bit pix_t) as the *window* format does not make offscreen
       attachments 16-bit; composite/sample into the window as a separate step.
@@ -345,7 +351,8 @@ RENDER TARGETS / FBOs
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                GL_TEXTURE_2D, color_tex, 0);
         // optional depth (and stencil; see below):
-        // glFramebufferTexture2D(..., GL_DEPTH_ATTACHMENT, ..., depth_tex, 0);
+        // glFramebufferTexture2D(..., GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_tex, 0);
+        // cubemap face (point shadows): GL_TEXTURE_CUBE_MAP_POSITIVE_X + i
         // glRenderbufferStorage(..., GL_DEPTH24_STENCIL8, w, h); // PGL_D24S8
         // glFramebufferRenderbuffer(..., GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb);
         glCheckFramebufferStatus(GL_FRAMEBUFFER); // GL_FRAMEBUFFER_COMPLETE
@@ -360,16 +367,28 @@ RENDER TARGETS / FBOs
     else GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER / _READ_BUFFER. Drawing or reading
     an incomplete FBO yields GL_INVALID_FRAMEBUFFER_OPERATION.
 
+    Cubemap depth: glTexImage2D each face with GL_DEPTH_COMPONENT + GL_FLOAT
+    (6 faces, square, level 0). Attach one face at a time with
+    glFramebufferTexture2D(..., GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_*_X/Y/Z,
+    cubemap, 0). Sample with texture_cubemap; .r is depth. Color cube faces
+    cannot be FBO attachments.
+
     Depth-only FBOs are complete with a depth image and no color if you set
     glDrawBuffer(GL_NONE) and glReadBuffer(GL_NONE) (the FBO default is
     COLOR_ATTACHMENT0). Clip/scissor then follow the depth attachment size.
     Color writes and GL_COLOR_BUFFER_BIT clears are no-ops.
 
-    Rasterization and glClear clip to the bound framebuffer size, not the
+    Rasterization and glClear clip to the bound *draw* framebuffer size, not the
     viewport. glViewport only sets the NDC mapping. glBindFramebuffer (and
     pglResizeFramebuffer / pglSetBackBuffer) refresh that clip to the current
     draw surface; if GL_SCISSOR_TEST is enabled, the scissor box is intersected
     with it. glScissor without GL_SCISSOR_TEST does not clip.
+
+    Dual bind: GL_FRAMEBUFFER sets both draw and read; GL_DRAW_FRAMEBUFFER and
+    GL_READ_FRAMEBUFFER are independent. glReadPixels / glBlitFramebuffer use
+    the read binding; draws, clears, and blit destination use the draw binding.
+    glBlitFramebuffer copies COLOR / DEPTH / STENCIL (NEAREST; LINEAR is color
+    only). Depth/stencil require GL_NEAREST. Destination writes honor scissor.
 
     Texture origin (invert_y)
     -------------------------
@@ -2712,6 +2731,9 @@ enum
 	GL_FRAMEBUFFER,
 	GL_DRAW_FRAMEBUFFER,
 	GL_READ_FRAMEBUFFER,
+	GL_FRAMEBUFFER_BINDING,
+	GL_DRAW_FRAMEBUFFER_BINDING,
+	GL_READ_FRAMEBUFFER_BINDING,
 
 	GL_COLOR_ATTACHMENT0,
 	GL_COLOR_ATTACHMENT1,
@@ -2889,6 +2911,8 @@ enum
 	GL_BGR,
 	GL_RGBA,
 	GL_BGRA,
+	GL_RGBA16F, // alias of RGBA32F: float RGBA, 4x float32
+	GL_RGBA32F,
 	GL_COMPRESSED_RED,
 	GL_COMPRESSED_RG,
 	GL_COMPRESSED_RGB,
@@ -2956,6 +2980,14 @@ enum
 	GL_FRONT_AND_BACK,
 	GL_CCW,
 	GL_CW,
+
+	// default-FB color buffers (DrawBuffer / ReadBuffer / DrawBuffers)
+	GL_LEFT,
+	GL_RIGHT,
+	GL_FRONT_LEFT,
+	GL_FRONT_RIGHT,
+	GL_BACK_LEFT,
+	GL_BACK_RIGHT,
 
 	// glLogicOp logic ops
 	GL_CLEAR,
@@ -3378,6 +3410,7 @@ typedef struct glFBO_Attachment
 	GLuint tex;   // 0 = none
 	GLuint rb;    // 0 = none; mutually exclusive with tex
 	GLint level;  // textures: level 0 only for now
+	GLenum textarget; // GL_TEXTURE_2D / RECTANGLE, or a cube face
 } glFBO_Attachment;
 
 // GL framebuffer *object* (name handle). Name 0 is the default window FB (not stored here).
@@ -3871,10 +3904,11 @@ typedef struct glContext
 	int user_alloced_backbuf;
 
 	// Framebuffer objects. Name 0 = default window FB (not in vector).
-	// When bound_framebuffer != 0, back_buffer/zbuf may point at attachments;
+	// When bound_draw_framebuffer != 0, back_buffer/zbuf may point at attachments;
 	// window_* hold the default surfaces to restore on bind 0.
 	cvector_glFBO framebuffers;
-	GLuint bound_framebuffer; // draw+read for v1 (no separate DRAW/READ bind)
+	GLuint bound_draw_framebuffer;
+	GLuint bound_read_framebuffer;
 	GLboolean fbo_redirected;
 	glFramebuffer window_back_buffer;
 #ifndef PGL_NO_DEPTH_NO_STENCIL
@@ -4098,6 +4132,7 @@ PGLDEF void glDrawBuffer(GLenum buf);
 PGLDEF void glDrawBuffers(GLsizei n, const GLenum* bufs);
 PGLDEF void glReadBuffer(GLenum mode);
 PGLDEF void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid* data);
+PGLDEF void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
 PGLDEF void glGenRenderbuffers(GLsizei n, GLuint* renderbuffers);
 PGLDEF void glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers);
 PGLDEF void glBindRenderbuffer(GLenum target, GLuint renderbuffer);
@@ -4228,7 +4263,7 @@ PGLDEF void glNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment
 
 PGLDEF void glNamedFramebufferReadBuffer(GLuint framebuffer, GLenum mode);
 
-PGLDEF void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
+
 PGLDEF void glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
 
 // Core renderbuffer/read APIs implemented in gl_fbo.c
@@ -9648,11 +9683,13 @@ static GLint pgl_format_components(GLenum format)
 		return 2;
 	if (format == GL_RGB || format == GL_BGR)
 		return 3; // not fully supported for float RT
-	return 4; // RGBA / BGRA
+	return 4; // RGBA / BGRA / RGBA16F / RGBA32F
 }
 
 static void pgl_tex_set_format(glTexture* tex, GLenum format, GLenum datatype)
 {
+	if (format == GL_RGBA16F || format == GL_RGBA32F)
+		format = GL_RGBA;
 	tex->format = format;
 	tex->datatype = datatype;
 	tex->is_depth = (format == GL_DEPTH_COMPONENT || format == GL_DEPTH_COMPONENT16 ||
@@ -10048,7 +10085,8 @@ PGLDEF GLboolean init_glContext(glContext* context, pix_t** back, GLsizei w, GLs
 	cvec_glRenderbuffer(&c->renderbuffers, 0, 4);
 	cvec_glVertex(&c->glverts, 0, 10);
 
-	c->bound_framebuffer = 0;
+	c->bound_draw_framebuffer = 0;
+	c->bound_read_framebuffer = 0;
 	c->bound_renderbuffer = 0;
 	c->fbo_redirected = GL_FALSE;
 	c->mrt_active = GL_FALSE;
@@ -11013,6 +11051,7 @@ static void pgl_copy_unpack_rows(u8* dst, const u8* src, int width, int height, 
 static GLboolean pgl_teximage_float_format_ok(GLenum format)
 {
 	return format == GL_RED || format == GL_RG || format == GL_RGBA ||
+	       format == GL_RGBA16F || format == GL_RGBA32F ||
 	       format == GL_DEPTH_COMPONENT;
 }
 
@@ -11135,9 +11174,18 @@ PGLDEF void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsiz
 		PGL_ERR(level != 0, GL_INVALID_VALUE);
 	}
 
-	// Cubemaps remain U8 RGBA (with optional convert) only
+	// Cubemap faces: U8 RGBA (existing) or float depth (point-shadow cubemaps)
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X) {
-		PGL_ERR(type != GL_UNSIGNED_BYTE, GL_INVALID_ENUM);
+		PGL_ERR(type != GL_UNSIGNED_BYTE && type != GL_FLOAT, GL_INVALID_ENUM);
+		if (type == GL_FLOAT)
+			PGL_ERR(!pgl_teximage_float_format_ok(format) ||
+			        (format != GL_DEPTH_COMPONENT && format != GL_DEPTH_COMPONENT16 &&
+			         format != GL_DEPTH_COMPONENT24 && format != GL_DEPTH_COMPONENT32 &&
+			         format != GL_DEPTH_COMPONENT32F), GL_INVALID_ENUM);
+		else
+			PGL_ERR(format == GL_DEPTH_COMPONENT || format == GL_DEPTH_COMPONENT16 ||
+			        format == GL_DEPTH_COMPONENT24 || format == GL_DEPTH_COMPONENT32 ||
+			        format == GL_DEPTH_COMPONENT32F, GL_INVALID_ENUM);
 	}
 
 	int components;
@@ -11231,7 +11279,7 @@ PGLDEF void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsiz
 			}
 		}
 
-	} else {  //CUBE_MAP (level 0 only, U8 RGBA storage)
+	} else {  //CUBE_MAP (level 0 only)
 		// If we're reusing a texture, and we haven't already loaded
 		// one of the planes of the cubemap, data is either NULL or valid
 		if (!tex->w) {
@@ -11246,32 +11294,42 @@ PGLDEF void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsiz
 		// https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
 		PGL_ERR(width != height, GL_INVALID_VALUE);
 
-		size_t mem_size = (size_t)width * height * 6 * 4;
+		GLboolean depth_float = (type == GL_FLOAT);
 		if (tex->w == 0) {
 			tex->w = width;
 			tex->h = width; //same cause square
 			tex->d = 1;
-
-			tex->data = (u8*)PGL_MALLOC(mem_size);
+			if (depth_float)
+				pgl_tex_set_format(tex, format, GL_FLOAT);
+			else
+				pgl_tex_set_format(tex, GL_RGBA, GL_UNSIGNED_BYTE);
+			size_t face_bytes = (size_t)width * (size_t)height * (size_t)pgl_tex_bytes_per_pixel(tex);
+			size_t mem_size = face_bytes * 6u;
+			tex->data = (u8*)PGL_MALLOC(mem_size ? mem_size : 1);
 			PGL_ERR(!tex->data, GL_OUT_OF_MEMORY);
 			tex->data_alloc = mem_size;
+			memset(tex->data, 0, mem_size ? mem_size : 1);
 			tex->num_levels = 1;
-			pgl_tex_set_format(tex, GL_RGBA, GL_UNSIGNED_BYTE);
 			pgl_set_level0_desc(tex);
 		} else if (tex->w != width) {
 			//TODO spec doesn't say all sides must have same dimensions but it makes sense
 			//and this site suggests it http://www.opengl.org/wiki/Cubemap_Texture
 			PGL_SET_ERR_RET(GL_INVALID_VALUE);
+		} else if (depth_float) {
+			PGL_ERR(!tex->is_depth || tex->datatype != GL_FLOAT, GL_INVALID_OPERATION);
+		} else {
+			PGL_ERR(tex->is_depth || tex->datatype != GL_UNSIGNED_BYTE, GL_INVALID_OPERATION);
 		}
 
-		//use target as plane index
-		target -= GL_TEXTURE_CUBE_MAP_POSITIVE_X;
-
-		int p = height*width*4;
-		u8* texdata = tex->data;
-
+		int face = (int)(target - GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+		size_t face_bytes = (size_t)width * (size_t)height * (size_t)pgl_tex_bytes_per_pixel(tex);
+		u8* dest = tex->data + (size_t)face * face_bytes;
 		if (data) {
-			convert_format_to_packed_rgba(&texdata[target*p], (u8*)data, width, height, padded_row_len, format);
+			int bpp = pgl_tex_bytes_per_pixel(tex);
+			if (depth_float)
+				pgl_copy_unpack_rows(dest, (const u8*)data, width, height, bpp, padded_row_len);
+			else
+				convert_format_to_packed_rgba(dest, (u8*)data, width, height, padded_row_len, format);
 		}
 
 		tex->user_owned = GL_FALSE;
@@ -11569,6 +11627,7 @@ static void pgl_generate_mipmap_tex(glTexture* tex, GLenum target)
 	}
 
 	if (target == GL_TEXTURE_CUBE_MAP) {
+		PGL_ERR(tex->is_depth || tex->datatype != GL_UNSIGNED_BYTE, GL_INVALID_OPERATION);
 		// Faces are square; filter each of the 6 faces independently per level
 		if (tex->w <= 1 && tex->h <= 1) {
 			tex->num_levels = 1;
@@ -12397,6 +12456,14 @@ PGLDEF void glGetIntegerv(GLenum pname, GLint* data)
 		data[0] = c->cur_program;
 		break;
 
+	case GL_FRAMEBUFFER_BINDING:
+	case GL_DRAW_FRAMEBUFFER_BINDING:
+		data[0] = (GLint)c->bound_draw_framebuffer;
+		break;
+	case GL_READ_FRAMEBUFFER_BINDING:
+		data[0] = (GLint)c->bound_read_framebuffer;
+		break;
+
 
 	case GL_TEXTURE_BINDING_1D:        data[0] = c->bound_textures[GL_TEXTURE_1D-GL_TEXTURE_UNBOUND-1]; break;
 	case GL_TEXTURE_BINDING_2D:        data[0] = c->bound_textures[GL_TEXTURE_2D-GL_TEXTURE_UNBOUND-1]; break;
@@ -12811,7 +12878,6 @@ PGLDEF void glNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment
 
 PGLDEF void glNamedFramebufferReadBuffer(GLuint framebuffer, GLenum mode) {}
 
-PGLDEF void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) {}
 PGLDEF void glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) {}
 
 PGLDEF void glRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) {}
@@ -12964,6 +13030,36 @@ static GLboolean pgl_tex_ok_depth_attach(const glTexture* t)
 	return have >= need;
 }
 
+static GLboolean pgl_is_cube_face_target(GLenum textarget)
+{
+	return textarget >= GL_TEXTURE_CUBE_MAP_POSITIVE_X &&
+	       textarget <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z;
+}
+
+static GLboolean pgl_tex_ok_depth_cube(const glTexture* t)
+{
+	if (!t || t->deleted || !t->is_depth || !t->data)
+		return GL_FALSE;
+	GLenum target = t->type + GL_TEXTURE_UNBOUND + 1;
+	if (target != GL_TEXTURE_CUBE_MAP)
+		return GL_FALSE;
+	if (t->w <= 0 || t->h <= 0 || t->w != t->h || t->num_levels < 1)
+		return GL_FALSE;
+	return GL_TRUE;
+}
+
+#ifndef PGL_NO_DEPTH_NO_STENCIL
+static u8* pgl_depth_tex_surf(glTexture* dt, GLenum textarget, size_t* zb_out)
+{
+	size_t zb = dt->is_depth ? (size_t)pgl_tex_bytes_per_pixel(dt) : pgl_z_bytes_per_pixel();
+	*zb_out = zb;
+	int face = 0;
+	if (pgl_is_cube_face_target(textarget))
+		face = (int)(textarget - GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+	return dt->data + (size_t)face * (size_t)dt->w * (size_t)dt->h * zb;
+}
+#endif
+
 static GLboolean pgl_rb_ok_depth(const glRenderbuffer* rb)
 {
 	if (!rb || rb->deleted || !rb->data || rb->w <= 0 || rb->h <= 0)
@@ -13020,8 +13116,12 @@ static GLenum pgl_fbo_compute_status(glFBO* f)
 			if (f->depth.tex >= c->textures.size)
 				return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
 			glTexture* t = &c->textures.a[f->depth.tex];
-			if (!pgl_tex_ok_depth_attach(t))
+			if (pgl_is_cube_face_target(f->depth.textarget)) {
+				if (!pgl_tex_ok_depth_cube(t))
+					return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
+			} else if (!pgl_tex_ok_depth_attach(t)) {
 				return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
+			}
 			dw = t->w;
 			dh = t->h;
 		} else {
@@ -13105,37 +13205,54 @@ static void pgl_fbo_update_status(glFBO* f)
 	f->status_dirty = GL_FALSE;
 }
 
-static glFBO* pgl_get_bound_user_fbo(void)
+static glFBO* pgl_user_fbo(GLuint id)
 {
-	if (!c->bound_framebuffer)
-		return NULL;
-	if (c->bound_framebuffer >= c->framebuffers.size)
-		return NULL;
-	glFBO* f = &c->framebuffers.a[c->bound_framebuffer];
-	if (f->deleted)
-		return NULL;
-	return f;
+	PGL_ASSERT(id != 0);
+	PGL_ASSERT(id < c->framebuffers.size && !c->framebuffers.a[id].deleted);
+	return &c->framebuffers.a[id];
 }
 
-// True if draws may proceed (default FB or complete user FBO).
-static GLboolean pgl_draw_framebuffer_ok(void)
+static glFBO* pgl_draw_user_fbo(void)
 {
-	if (!c->bound_framebuffer)
+	return pgl_user_fbo(c->bound_draw_framebuffer);
+}
+
+static GLuint pgl_fbo_id_for_target(GLenum target)
+{
+	if (target == GL_READ_FRAMEBUFFER)
+		return c->bound_read_framebuffer;
+	return c->bound_draw_framebuffer;
+}
+
+static GLboolean pgl_fbo_id_complete(GLuint id)
+{
+	if (!id)
 		return GL_TRUE;
-	glFBO* f = pgl_get_bound_user_fbo();
-	if (!f)
-		return GL_FALSE;
+	glFBO* f = pgl_user_fbo(id);
 	if (f->status_dirty)
 		pgl_fbo_update_status(f);
 	return f->status == GL_FRAMEBUFFER_COMPLETE;
+}
+
+static GLboolean pgl_draw_framebuffer_ok(void)
+{
+	return pgl_fbo_id_complete(c->bound_draw_framebuffer);
+}
+
+static void pgl_sync_read_state(void)
+{
+	if (!c->bound_read_framebuffer) {
+		c->read_buffer = c->default_read_buffer;
+		return;
+	}
+	c->read_buffer = pgl_user_fbo(c->bound_read_framebuffer)->read_buffer;
 }
 
 #ifndef PGL_NO_DEPTH_NO_STENCIL
 static GLboolean pgl_ensure_fbo_scratch_z(GLsizei w, GLsizei h)
 {
 	size_t zb = pgl_z_bytes_per_pixel();
-	if (!zb || w <= 0 || h <= 0)
-		return GL_FALSE;
+	PGL_ASSERT(zb && w > 0 && h > 0);
 	size_t need = (size_t)w * (size_t)h * zb;
 	if (c->fbo_scratch_z.buf && c->fbo_scratch_z.w == w && c->fbo_scratch_z.h == h)
 		return GL_TRUE;
@@ -13172,7 +13289,6 @@ static void pgl_apply_color_attachments(glFBO* f)
 	c->num_draw_buffers = f->num_draw_buffers;
 	for (GLsizei i = 0; i < GL_MAX_DRAW_BUFFERS; ++i)
 		c->draw_buffers[i] = (i < f->num_draw_buffers) ? f->draw_buffers[i] : (GLenum)GL_NONE;
-	c->read_buffer = f->read_buffer;
 	c->fbo_color_is_rt = GL_TRUE;
 
 	// Dimension surface for scissor/viewport macros (buf may be unused for color writes)
@@ -13222,7 +13338,7 @@ static int pgl_fbo_has_color(const glFBO* f)
 // Point active draw surfaces at bound FBO attachments (or restore window).
 static void pgl_apply_draw_framebuffer(void)
 {
-	if (!c->bound_framebuffer) {
+	if (!c->bound_draw_framebuffer) {
 		if (c->fbo_redirected) {
 			c->back_buffer = c->window_back_buffer;
 #ifndef PGL_NO_DEPTH_NO_STENCIL
@@ -13244,16 +13360,13 @@ static void pgl_apply_draw_framebuffer(void)
 		c->num_draw_buffers = c->default_num_draw_buffers;
 		for (GLsizei i = 0; i < GL_MAX_DRAW_BUFFERS; ++i)
 			c->draw_buffers[i] = c->default_draw_buffers[i];
-		c->read_buffer = c->default_read_buffer;
 		for (int i = 0; i < GL_MAX_COLOR_ATTACHMENTS; ++i)
 			memset(&c->mrt_color[i], 0, sizeof(c->mrt_color[i]));
 		pgl_update_clip_rect();
 		return;
 	}
 
-	glFBO* f = pgl_get_bound_user_fbo();
-	if (!f)
-		return;
+	glFBO* f = pgl_draw_user_fbo();
 	if (f->status_dirty)
 		pgl_fbo_update_status(f);
 	if (f->status != GL_FRAMEBUFFER_COMPLETE) {
@@ -13286,17 +13399,12 @@ static void pgl_apply_draw_framebuffer(void)
 	if (f->depth.tex) {
 		glTexture* dt = &c->textures.a[f->depth.tex];
 		pgl_tex_mark_render_target(dt);
-		// Explicit depth textures use their own bpp; legacy "alias color storage as Z"
-		// must use window Z packing (D16=2, D24S8=4), not the color texel's bpp.
 		size_t zb;
-		if (dt->is_depth)
-			zb = (size_t)pgl_tex_bytes_per_pixel(dt);
-		else
-			zb = pgl_z_bytes_per_pixel();
-		c->zbuf.buf = dt->data;
+		u8* surf = pgl_depth_tex_surf(dt, f->depth.textarget, &zb);
+		c->zbuf.buf = surf;
 		c->zbuf.w = dt->w;
 		c->zbuf.h = dt->h;
-		c->zbuf.lastrow = dt->data + (size_t)(dt->h - 1) * (size_t)dt->w * zb;
+		c->zbuf.lastrow = surf + (size_t)(dt->h - 1) * (size_t)dt->w * zb;
 		if (dt->is_depth && dt->datatype == GL_FLOAT)
 			c->zbuf_float = GL_TRUE;
 #  if defined(PGL_D24S8)
@@ -13400,9 +13508,13 @@ PGLDEF void glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers)
 			continue;
 		if (c->framebuffers.a[id].deleted)
 			continue;
-		if (c->bound_framebuffer == id) {
-			c->bound_framebuffer = 0;
+		if (c->bound_draw_framebuffer == id) {
+			c->bound_draw_framebuffer = 0;
 			pgl_apply_draw_framebuffer();
+		}
+		if (c->bound_read_framebuffer == id) {
+			c->bound_read_framebuffer = 0;
+			pgl_sync_read_state();
 		}
 		c->framebuffers.a[id].deleted = GL_TRUE;
 	}
@@ -13425,9 +13537,16 @@ PGLDEF void glBindFramebuffer(GLenum target, GLuint framebuffer)
 		        c->framebuffers.a[framebuffer].deleted, GL_INVALID_OPERATION);
 	}
 
-	// v1: DRAW and READ share one bind
-	c->bound_framebuffer = framebuffer;
-	pgl_apply_draw_framebuffer();
+	GLboolean bind_draw = (target != GL_READ_FRAMEBUFFER);
+	GLboolean bind_read = (target != GL_DRAW_FRAMEBUFFER);
+	if (bind_draw && c->bound_draw_framebuffer != framebuffer) {
+		c->bound_draw_framebuffer = framebuffer;
+		pgl_apply_draw_framebuffer();
+	}
+	if (bind_read && c->bound_read_framebuffer != framebuffer) {
+		c->bound_read_framebuffer = framebuffer;
+		pgl_sync_read_state();
+	}
 }
 
 PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget,
@@ -13435,15 +13554,22 @@ PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 {
 	PGL_ERR(target != GL_FRAMEBUFFER && target != GL_DRAW_FRAMEBUFFER &&
 	        target != GL_READ_FRAMEBUFFER, GL_INVALID_ENUM);
-	PGL_ERR(!c->bound_framebuffer, GL_INVALID_OPERATION); // cannot attach to default FB
+	GLuint fbo_id = pgl_fbo_id_for_target(target);
+	PGL_ERR(!fbo_id, GL_INVALID_OPERATION); // cannot attach to default FB
 
-	glFBO* f = pgl_get_bound_user_fbo();
-	PGL_ERR(!f, GL_INVALID_OPERATION);
+	glFBO* f = pgl_user_fbo(fbo_id);
 
 	if (texture != 0) {
-		PGL_ERR(textarget != GL_TEXTURE_2D && textarget != GL_TEXTURE_RECTANGLE, GL_INVALID_OPERATION);
 		PGL_ERR(level != 0, GL_INVALID_VALUE); // v1: level 0 only
 		PGL_ERR(texture >= c->textures.size || c->textures.a[texture].deleted, GL_INVALID_VALUE);
+		if (pgl_is_cube_face_target(textarget)) {
+			PGL_ERR(attachment != GL_DEPTH_ATTACHMENT, GL_INVALID_OPERATION);
+			GLenum tex_tgt = c->textures.a[texture].type + GL_TEXTURE_UNBOUND + 1;
+			PGL_ERR(tex_tgt != GL_TEXTURE_CUBE_MAP, GL_INVALID_OPERATION);
+		} else {
+			PGL_ERR(textarget != GL_TEXTURE_2D && textarget != GL_TEXTURE_RECTANGLE,
+			        GL_INVALID_OPERATION);
+		}
 	}
 
 	if (attachment == GL_COLOR_ATTACHMENT0 ||
@@ -13453,6 +13579,7 @@ PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 		f->color[idx].tex = texture;
 		f->color[idx].rb = 0;
 		f->color[idx].level = level;
+		f->color[idx].textarget = texture ? textarget : (GLenum)0;
 		if (texture)
 			pgl_tex_mark_render_target(&c->textures.a[texture]);
 	} else if (attachment == GL_DEPTH_ATTACHMENT) {
@@ -13462,6 +13589,7 @@ PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 		f->depth.tex = texture;
 		f->depth.rb = 0;
 		f->depth.level = level;
+		f->depth.textarget = texture ? textarget : (GLenum)0;
 		if (texture)
 			pgl_tex_mark_render_target(&c->textures.a[texture]);
 #endif
@@ -13473,6 +13601,7 @@ PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 		f->stencil.tex = texture;
 		f->stencil.rb = 0;
 		f->stencil.level = level;
+		f->stencil.textarget = texture ? textarget : (GLenum)0;
 #endif
 	} else if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
 #if defined(PGL_NO_STENCIL) || defined(PGL_NO_DEPTH_NO_STENCIL)
@@ -13481,9 +13610,11 @@ PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 		f->depth.tex = texture;
 		f->depth.rb = 0;
 		f->depth.level = level;
+		f->depth.textarget = texture ? textarget : (GLenum)0;
 		f->stencil.tex = texture;
 		f->stencil.rb = 0;
 		f->stencil.level = level;
+		f->stencil.textarget = texture ? textarget : (GLenum)0;
 		if (texture)
 			pgl_tex_mark_render_target(&c->textures.a[texture]);
 #endif
@@ -13492,8 +13623,7 @@ PGLDEF void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 	}
 
 	pgl_fbo_mark_dirty(f);
-	// Re-apply if still bound so draw targets update
-	if (c->bound_framebuffer)
+	if (fbo_id == c->bound_draw_framebuffer)
 		pgl_apply_draw_framebuffer();
 }
 
@@ -13509,13 +13639,25 @@ PGLDEF GLenum glCheckFramebufferStatus(GLenum target)
 	PGL_ERR_RET_VAL(target != GL_FRAMEBUFFER && target != GL_DRAW_FRAMEBUFFER &&
 	                target != GL_READ_FRAMEBUFFER, GL_INVALID_ENUM, 0);
 
-	if (!c->bound_framebuffer)
+	GLuint id = pgl_fbo_id_for_target(target);
+	if (!id)
 		return GL_FRAMEBUFFER_COMPLETE; // default FB always complete when context exists
 
-	glFBO* f = pgl_get_bound_user_fbo();
-	PGL_ERR_RET_VAL(!f, GL_INVALID_OPERATION, 0);
+	glFBO* f = pgl_user_fbo(id);
 	pgl_fbo_update_status(f);
 	return f->status;
+}
+
+// Default FB is mono with one color buffer. These names all mean that buffer.
+static GLboolean pgl_default_fb_is_window_color(GLenum b)
+{
+	return b == GL_BACK || b == GL_FRONT || b == GL_LEFT ||
+	       b == GL_FRONT_LEFT || b == GL_BACK_LEFT;
+}
+
+static GLboolean pgl_default_fb_missing_stereo(GLenum b)
+{
+	return b == GL_RIGHT || b == GL_FRONT_RIGHT || b == GL_BACK_RIGHT;
 }
 
 // Select which color attachments receive FS outputs (gl_FragData[i] → bufs[i]).
@@ -13526,17 +13668,19 @@ PGLDEF void glDrawBuffers(GLsizei n, const GLenum* bufs)
 	PGL_ERR(!bufs && n > 0, GL_INVALID_VALUE);
 
 	// Validate entries; reject duplicates (except GL_NONE)
-	GLboolean seen[GL_MAX_COLOR_ATTACHMENTS];
-	memset(seen, 0, sizeof(seen));
+	GLboolean seen[GL_MAX_COLOR_ATTACHMENTS] = { 0 };
 
 	for (GLsizei i = 0; i < n; ++i) {
 		GLenum b = bufs[i];
 		if (b == GL_NONE)
 			continue;
 
-		if (!c->bound_framebuffer) {
-			// Default FB: only GL_BACK (and treat COLOR_ATTACHMENT0 as synonym)
-			PGL_ERR(b != GL_BACK && b != GL_COLOR_ATTACHMENT0, GL_INVALID_ENUM);
+		if (!c->bound_draw_framebuffer) {
+			// Mono window: FRONT/BACK/LEFT/*_LEFT/FRONT_AND_BACK all write
+			// the same pix_t buffer. RIGHT/*_RIGHT do not exist.
+			PGL_ERR(pgl_default_fb_missing_stereo(b), GL_INVALID_OPERATION);
+			PGL_ERR(!pgl_default_fb_is_window_color(b) && b != GL_FRONT_AND_BACK,
+			        GL_INVALID_ENUM);
 			PGL_ERR(n != 1, GL_INVALID_OPERATION); // single buffer only
 		} else {
 			PGL_ERR(b < GL_COLOR_ATTACHMENT0 ||
@@ -13547,7 +13691,7 @@ PGLDEF void glDrawBuffers(GLsizei n, const GLenum* bufs)
 		}
 	}
 
-	if (!c->bound_framebuffer) {
+	if (!c->bound_draw_framebuffer) {
 		c->default_num_draw_buffers = n > 0 ? n : 1;
 		if (n <= 0) {
 			c->default_draw_buffers[0] = GL_BACK;
@@ -13564,8 +13708,7 @@ PGLDEF void glDrawBuffers(GLsizei n, const GLenum* bufs)
 		return;
 	}
 
-	glFBO* f = pgl_get_bound_user_fbo();
-	PGL_ERR(!f, GL_INVALID_OPERATION);
+	glFBO* f = pgl_draw_user_fbo();
 
 	f->num_draw_buffers = n > 0 ? n : 1;
 	if (n <= 0) {
@@ -13709,10 +13852,10 @@ PGLDEF void glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum r
 	PGL_ERR(target != GL_FRAMEBUFFER && target != GL_DRAW_FRAMEBUFFER &&
 	        target != GL_READ_FRAMEBUFFER, GL_INVALID_ENUM);
 	PGL_ERR(renderbuffertarget != GL_RENDERBUFFER, GL_INVALID_ENUM);
-	PGL_ERR(!c->bound_framebuffer, GL_INVALID_OPERATION);
+	GLuint fbo_id = pgl_fbo_id_for_target(target);
+	PGL_ERR(!fbo_id, GL_INVALID_OPERATION);
 
-	glFBO* f = pgl_get_bound_user_fbo();
-	PGL_ERR(!f, GL_INVALID_OPERATION);
+	glFBO* f = pgl_user_fbo(fbo_id);
 
 	if (renderbuffer != 0) {
 		PGL_ERR(renderbuffer >= c->renderbuffers.size ||
@@ -13750,32 +13893,285 @@ PGLDEF void glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum r
 	}
 
 	pgl_fbo_mark_dirty(f);
-	if (c->bound_framebuffer)
+	if (fbo_id == c->bound_draw_framebuffer)
 		pgl_apply_draw_framebuffer();
 }
 
 PGLDEF void glReadBuffer(GLenum mode)
 {
-	if (!c->bound_framebuffer) {
-		PGL_ERR(mode != GL_BACK && mode != GL_COLOR_ATTACHMENT0, GL_INVALID_ENUM);
-		c->default_read_buffer = (mode == GL_COLOR_ATTACHMENT0) ? GL_BACK : mode;
-		c->read_buffer = c->default_read_buffer;
+	if (!c->bound_read_framebuffer) {
+		PGL_ERR(pgl_default_fb_missing_stereo(mode), GL_INVALID_OPERATION);
+		PGL_ERR(!pgl_default_fb_is_window_color(mode), GL_INVALID_ENUM);
+		c->default_read_buffer = GL_BACK;
+		c->read_buffer = GL_BACK;
 		return;
 	}
 	PGL_ERR(mode != GL_NONE &&
 	        (mode < GL_COLOR_ATTACHMENT0 ||
 	         mode >= GL_COLOR_ATTACHMENT0 + GL_MAX_COLOR_ATTACHMENTS), GL_INVALID_ENUM);
-	glFBO* f = pgl_get_bound_user_fbo();
-	PGL_ERR(!f, GL_INVALID_OPERATION);
+	glFBO* f = pgl_user_fbo(c->bound_read_framebuffer);
 	f->read_buffer = mode;
 	c->read_buffer = mode;
-	// Read buffer affects completeness (INCOMPLETE_READ_BUFFER)
 	pgl_fbo_mark_dirty(f);
-	pgl_apply_draw_framebuffer();
+	if (c->bound_read_framebuffer == c->bound_draw_framebuffer)
+		pgl_apply_draw_framebuffer();
 }
 
-// Thin glReadPixels: RGBA U8 or float RGBA/R from current read color buffer.
-// (x,y) is GL bottom-left origin; converts to storage with invert for RTs.
+typedef struct {
+	u8* buf;
+	GLsizei w, h;
+	GLenum datatype;
+	int components;
+	GLboolean is_pix_t;
+	GLboolean valid; // GL_FALSE = no color image (e.g. GL_NONE read/draw buffer)
+} pglBlitColor;
+
+typedef struct {
+	u8* buf;
+	GLsizei w, h;
+	GLboolean is_float;
+	u8* stencil; // D16 separate S8; NULL if none or packed in buf
+	GLboolean valid; // GL_FALSE = no depth image
+} pglBlitDepth;
+
+static void pgl_resolve_window_color(pglBlitColor* s)
+{
+	glFramebuffer* bb = c->fbo_redirected ? &c->window_back_buffer : &c->back_buffer;
+	PGL_ASSERT(bb->buf && bb->w > 0 && bb->h > 0);
+	s->buf = bb->buf;
+	s->w = bb->w;
+	s->h = bb->h;
+	s->datatype = GL_UNSIGNED_BYTE;
+	s->components = 4;
+	s->is_pix_t = GL_TRUE;
+	s->valid = GL_TRUE;
+}
+
+static void pgl_resolve_fbo_color(glFBO* f, GLenum att_enum, pglBlitColor* s)
+{
+	s->valid = GL_FALSE;
+	s->buf = NULL;
+	if (att_enum == GL_NONE)
+		return;
+	int att = (int)(att_enum - GL_COLOR_ATTACHMENT0);
+	PGL_ASSERT(att >= 0 && att < GL_MAX_COLOR_ATTACHMENTS && f->color[att].tex);
+	glTexture* t = &c->textures.a[f->color[att].tex];
+	PGL_ASSERT(t->data);
+	s->buf = t->data;
+	s->w = t->w;
+	s->h = t->h;
+	s->datatype = t->datatype;
+	s->components = t->components;
+	s->is_pix_t = GL_FALSE;
+	s->valid = GL_TRUE;
+}
+
+static void pgl_resolve_read_color(pglBlitColor* s)
+{
+	if (!c->bound_read_framebuffer) {
+		pgl_resolve_window_color(s);
+		return;
+	}
+	glFBO* f = pgl_user_fbo(c->bound_read_framebuffer);
+	pgl_resolve_fbo_color(f, f->read_buffer, s);
+}
+
+#ifndef PGL_NO_DEPTH_NO_STENCIL
+static void pgl_resolve_window_depth(pglBlitDepth* s)
+{
+	glFramebuffer* zb = c->fbo_redirected ? &c->window_zbuf : &c->zbuf;
+	PGL_ASSERT(zb->buf && zb->w > 0 && zb->h > 0);
+	s->buf = zb->buf;
+	s->w = zb->w;
+	s->h = zb->h;
+	s->is_float = GL_FALSE;
+	s->valid = GL_TRUE;
+	s->stencil = NULL;
+#  if defined(PGL_D16) && !defined(PGL_NO_STENCIL)
+	{
+		glFramebuffer* sb = c->fbo_redirected ? &c->window_stencil_buf : &c->stencil_buf;
+		s->stencil = sb->buf;
+	}
+#  endif
+}
+
+static void pgl_resolve_fbo_depth(glFBO* f, pglBlitDepth* s)
+{
+	s->valid = GL_FALSE;
+	s->buf = NULL;
+	s->stencil = NULL;
+	if (!f->depth.tex && !f->depth.rb)
+		return;
+	if (f->depth.tex) {
+		glTexture* t = &c->textures.a[f->depth.tex];
+		PGL_ASSERT(t->data);
+		size_t zb;
+		s->buf = pgl_depth_tex_surf(t, f->depth.textarget, &zb);
+		s->w = t->w;
+		s->h = t->h;
+		s->is_float = (t->is_depth && t->datatype == GL_FLOAT) ? GL_TRUE : GL_FALSE;
+	} else {
+		glRenderbuffer* rb = &c->renderbuffers.a[f->depth.rb];
+		PGL_ASSERT(rb->data);
+		s->buf = rb->data;
+		s->w = rb->w;
+		s->h = rb->h;
+		s->is_float = (rb->internalformat == GL_DEPTH_COMPONENT32F) ? GL_TRUE : GL_FALSE;
+	}
+	s->valid = GL_TRUE;
+#  if defined(PGL_D16) && !defined(PGL_NO_STENCIL)
+	if (f->stencil.rb && f->stencil.rb != f->depth.rb) {
+		glRenderbuffer* srb = &c->renderbuffers.a[f->stencil.rb];
+		PGL_ASSERT(srb->data);
+		s->stencil = srb->data;
+	}
+#  endif
+}
+
+static void pgl_resolve_read_depth(pglBlitDepth* s)
+{
+	if (!c->bound_read_framebuffer) {
+		pgl_resolve_window_depth(s);
+		return;
+	}
+	pgl_resolve_fbo_depth(pgl_user_fbo(c->bound_read_framebuffer), s);
+}
+
+static void pgl_resolve_draw_depth(pglBlitDepth* s)
+{
+	if (!c->bound_draw_framebuffer) {
+		pgl_resolve_window_depth(s);
+		return;
+	}
+	pgl_resolve_fbo_depth(pgl_user_fbo(c->bound_draw_framebuffer), s);
+}
+#endif
+
+static int pgl_blit_idx(GLsizei w, GLsizei h, int x, int y)
+{
+	return (h - 1 - y) * w + x;
+}
+
+static void pgl_blit_get_rgba(const pglBlitColor* s, int x, int y, float* r, float* g, float* b, float* a)
+{
+	*r = *g = *b = 0.f;
+	*a = 1.f;
+	if (x < 0 || y < 0 || x >= s->w || y >= s->h)
+		return;
+	int idx = pgl_blit_idx(s->w, s->h, x, y);
+	if (s->is_pix_t) {
+		Color colc = PIXEL_TO_COLOR(((pix_t*)s->buf)[idx]);
+		*r = colc.r / (float)PGL_RMAX;
+		*g = colc.g / (float)PGL_GMAX;
+		*b = colc.b / (float)PGL_BMAX;
+		*a = colc.a / (float)PGL_AMAX;
+	} else if (s->datatype == GL_FLOAT) {
+		const float* f = (const float*)s->buf + idx * s->components;
+		*r = f[0];
+		if (s->components > 1) *g = f[1];
+		if (s->components > 2) *b = f[2];
+		if (s->components > 3) *a = f[3];
+	} else {
+		Color colc = ((Color*)s->buf)[idx];
+		*r = colc.r / 255.f;
+		*g = colc.g / 255.f;
+		*b = colc.b / 255.f;
+		*a = colc.a / 255.f;
+	}
+}
+
+static void pgl_blit_put_rgba(const pglBlitColor* s, int x, int y, float r, float g, float b, float a)
+{
+	PGL_ASSERT(x >= 0 && y >= 0 && x < s->w && y < s->h);
+	int idx = pgl_blit_idx(s->w, s->h, x, y);
+	if (r < 0.f) r = 0.f; if (r > 1.f) r = 1.f;
+	if (g < 0.f) g = 0.f; if (g > 1.f) g = 1.f;
+	if (b < 0.f) b = 0.f; if (b > 1.f) b = 1.f;
+	if (a < 0.f) a = 0.f; if (a > 1.f) a = 1.f;
+	if (s->is_pix_t) {
+		((pix_t*)s->buf)[idx] = RGBA_TO_PIXEL(r * PGL_RMAX, g * PGL_GMAX, b * PGL_BMAX, a * PGL_AMAX);
+	} else if (s->datatype == GL_FLOAT) {
+		float* f = (float*)s->buf + idx * s->components;
+		f[0] = r;
+		if (s->components > 1) f[1] = g;
+		if (s->components > 2) f[2] = b;
+		if (s->components > 3) f[3] = a;
+	} else {
+		Color* p = (Color*)s->buf + idx;
+		p->r = (u8)(r * 255.f);
+		p->g = (u8)(g * 255.f);
+		p->b = (u8)(b * 255.f);
+		p->a = (u8)(a * 255.f);
+	}
+}
+
+#ifndef PGL_NO_DEPTH_NO_STENCIL
+static float pgl_blit_get_depth(const pglBlitDepth* s, int x, int y)
+{
+	if (x < 0 || y < 0 || x >= s->w || y >= s->h)
+		return 0.f;
+	int idx = pgl_blit_idx(s->w, s->h, x, y);
+	if (s->is_float)
+		return ((float*)s->buf)[idx];
+#  if defined(PGL_D16)
+	return ((u16*)s->buf)[idx] / (float)PGL_MAX_Z;
+#  else
+	return (((u32*)s->buf)[idx] >> PGL_ZSHIFT) / (float)PGL_MAX_Z;
+#  endif
+}
+
+static void pgl_blit_put_depth(const pglBlitDepth* s, int x, int y, float d, GLboolean write_stencil, u8 stencil)
+{
+	PGL_ASSERT(x >= 0 && y >= 0 && x < s->w && y < s->h);
+	if (d < 0.f) d = 0.f;
+	if (d > 1.f) d = 1.f;
+	int idx = pgl_blit_idx(s->w, s->h, x, y);
+	if (s->is_float) {
+		((float*)s->buf)[idx] = d;
+		return;
+	}
+#  if defined(PGL_D16)
+	((u16*)s->buf)[idx] = (u16)(d * PGL_MAX_Z);
+	(void)write_stencil;
+	(void)stencil;
+#  else
+	u32* p = (u32*)s->buf + idx;
+	u32 zbits = ((u32)(d * PGL_MAX_Z)) << PGL_ZSHIFT;
+	if (write_stencil)
+		*p = zbits | stencil;
+	else
+		*p = (*p & PGL_STENCIL_MASK) | zbits;
+#  endif
+}
+
+#  if !defined(PGL_NO_STENCIL)
+static u8 pgl_blit_get_stencil(const pglBlitDepth* s, int x, int y)
+{
+	if (x < 0 || y < 0 || x >= s->w || y >= s->h)
+		return 0;
+	int idx = pgl_blit_idx(s->w, s->h, x, y);
+#    if defined(PGL_D16)
+	return s->stencil[idx];
+#    else
+	return (u8)(((u32*)s->buf)[idx] & PGL_STENCIL_MASK);
+#    endif
+}
+
+static void pgl_blit_put_stencil(const pglBlitDepth* s, int x, int y, u8 stencil)
+{
+	PGL_ASSERT(x >= 0 && y >= 0 && x < s->w && y < s->h);
+	int idx = pgl_blit_idx(s->w, s->h, x, y);
+#    if defined(PGL_D16)
+	s->stencil[idx] = stencil;
+#    else
+	u32* p = (u32*)s->buf + idx;
+	*p = (*p & ~PGL_STENCIL_MASK) | stencil;
+#    endif
+}
+#  endif
+#endif
+
+// Thin glReadPixels: RGBA U8 or float RGBA/R from the *read* color buffer.
 PGLDEF void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height,
                          GLenum format, GLenum type, GLvoid* data)
 {
@@ -13783,76 +14179,21 @@ PGLDEF void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height,
 	PGL_ERR(!data, GL_INVALID_VALUE);
 	PGL_ERR(format != GL_RGBA && format != GL_RED, GL_INVALID_ENUM);
 	PGL_ERR(type != GL_UNSIGNED_BYTE && type != GL_FLOAT, GL_INVALID_ENUM);
-	// User FBO must be complete (includes DRAW_BUFFER / READ_BUFFER rules)
-	PGL_ERR(c->bound_framebuffer && !pgl_draw_framebuffer_ok(),
+	PGL_ERR(!pgl_fbo_id_complete(c->bound_read_framebuffer),
 	        GL_INVALID_FRAMEBUFFER_OPERATION);
 
 	if (!width || !height)
 		return;
 
-	// Resolve source
-	u8* src_base = NULL;
-	GLsizei sw = 0, sh = 0;
-	GLenum src_type = GL_UNSIGNED_BYTE;
-	int src_comp = 4;
-	GLboolean invert = GL_FALSE;
-
-	if (!c->bound_framebuffer || !c->fbo_color_is_rt) {
-		src_base = c->back_buffer.buf;
-		sw = c->back_buffer.w;
-		sh = c->back_buffer.h;
-		// Window is top-down memory; GL y=0 is bottom → invert
-		invert = GL_TRUE;
-		src_type = GL_UNSIGNED_BYTE;
-		// will convert from pix_t
-	} else {
-		GLenum rb = c->read_buffer;
-		if (rb == GL_NONE)
-			return;
-		int att = (int)(rb - GL_COLOR_ATTACHMENT0);
-		// Completeness guarantees a non-NONE read buffer has an attachment
-		PGL_ASSERT(att >= 0 && att < GL_MAX_COLOR_ATTACHMENTS);
-		PGL_ASSERT(c->mrt_color[att].buf);
-		pglColorRT* rt = &c->mrt_color[att];
-		src_base = rt->buf;
-		sw = rt->w;
-		sh = rt->h;
-		src_type = rt->datatype;
-		src_comp = rt->components;
-		invert = GL_TRUE; // RT lastrow / invert_y: GL y=0 = bottom
-	}
+	pglBlitColor src;
+	pgl_resolve_read_color(&src);
+	if (!src.valid)
+		return;
 
 	for (GLsizei row = 0; row < height; ++row) {
 		for (GLsizei col = 0; col < width; ++col) {
-			GLint sx = x + col;
-			GLint sy_gl = y + row; // bottom-left origin
-			if (sx < 0 || sy_gl < 0 || sx >= sw || sy_gl >= sh)
-				continue;
-			GLint sy = invert ? (sh - 1 - sy_gl) : sy_gl;
-			int idx = sy * sw + sx;
-			float fr = 0, fg = 0, fb = 0, fa = 1;
-
-			if (!c->bound_framebuffer || !c->fbo_color_is_rt) {
-				pix_t p = ((pix_t*)src_base)[idx];
-				Color colc = PIXEL_TO_COLOR(p);
-				fr = colc.r / (float)PGL_RMAX;
-				fg = colc.g / (float)PGL_GMAX;
-				fb = colc.b / (float)PGL_BMAX;
-				fa = colc.a / (float)PGL_AMAX;
-			} else if (src_type == GL_FLOAT) {
-				const float* f = (const float*)src_base + idx * src_comp;
-				fr = f[0];
-				if (src_comp > 1) fg = f[1];
-				if (src_comp > 2) fb = f[2];
-				if (src_comp > 3) fa = f[3];
-			} else {
-				Color colc = ((Color*)src_base)[idx];
-				fr = colc.r / 255.f;
-				fg = colc.g / 255.f;
-				fb = colc.b / 255.f;
-				fa = colc.a / 255.f;
-			}
-
+			float fr, fg, fb, fa;
+			pgl_blit_get_rgba(&src, x + col, y + row, &fr, &fg, &fb, &fa);
 			size_t out_i = (size_t)row * (size_t)width + (size_t)col;
 			if (type == GL_UNSIGNED_BYTE) {
 				u8* o = (u8*)data;
@@ -13877,6 +14218,151 @@ PGLDEF void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height,
 			}
 		}
 	}
+}
+
+static void pgl_blit_sample_color(const pglBlitColor* src, float sx, float sy, GLenum filter,
+                                  float* r, float* g, float* b, float* a)
+{
+	if (filter != GL_LINEAR) {
+		int ix = (int)floorf(sx);
+		int iy = (int)floorf(sy);
+		pgl_blit_get_rgba(src, ix, iy, r, g, b, a);
+		return;
+	}
+	int x0 = (int)floorf(sx);
+	int y0 = (int)floorf(sy);
+	float fx = sx - (float)x0;
+	float fy = sy - (float)y0;
+	float r00, g00, b00, a00, r10, g10, b10, a10, r01, g01, b01, a01, r11, g11, b11, a11;
+	pgl_blit_get_rgba(src, x0, y0, &r00, &g00, &b00, &a00);
+	pgl_blit_get_rgba(src, x0 + 1, y0, &r10, &g10, &b10, &a10);
+	pgl_blit_get_rgba(src, x0, y0 + 1, &r01, &g01, &b01, &a01);
+	pgl_blit_get_rgba(src, x0 + 1, y0 + 1, &r11, &g11, &b11, &a11);
+	*r = r00 * (1 - fx) * (1 - fy) + r10 * fx * (1 - fy) + r01 * (1 - fx) * fy + r11 * fx * fy;
+	*g = g00 * (1 - fx) * (1 - fy) + g10 * fx * (1 - fy) + g01 * (1 - fx) * fy + g11 * fx * fy;
+	*b = b00 * (1 - fx) * (1 - fy) + b10 * fx * (1 - fy) + b01 * (1 - fx) * fy + b11 * fx * fy;
+	*a = a00 * (1 - fx) * (1 - fy) + a10 * fx * (1 - fy) + a01 * (1 - fx) * fy + a11 * fx * fy;
+}
+
+PGLDEF void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1,
+                              GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1,
+                              GLbitfield mask, GLenum filter)
+{
+	PGL_ERR(filter != GL_NEAREST && filter != GL_LINEAR, GL_INVALID_ENUM);
+	PGL_ERR(mask & ~(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT),
+	        GL_INVALID_VALUE);
+	if ((mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)) && filter == GL_LINEAR)
+		PGL_ERR(1, GL_INVALID_OPERATION);
+	PGL_ERR(!pgl_fbo_id_complete(c->bound_read_framebuffer) ||
+	        !pgl_fbo_id_complete(c->bound_draw_framebuffer),
+	        GL_INVALID_FRAMEBUFFER_OPERATION);
+
+	GLint src_w = srcX1 - srcX0;
+	GLint src_h = srcY1 - srcY0;
+	GLint dst_w = dstX1 - dstX0;
+	GLint dst_h = dstY1 - dstY0;
+	if (!src_w || !src_h || !dst_w || !dst_h)
+		return;
+
+	int dst_x0 = dstX0 < dstX1 ? dstX0 : dstX1;
+	int dst_x1 = dstX0 < dstX1 ? dstX1 : dstX0;
+	int dst_y0 = dstY0 < dstY1 ? dstY0 : dstY1;
+	int dst_y1 = dstY0 < dstY1 ? dstY1 : dstY0;
+
+	if (mask & GL_COLOR_BUFFER_BIT) {
+		pglBlitColor src;
+		pgl_resolve_read_color(&src);
+		if (src.valid) {
+			pglBlitColor dsts[GL_MAX_COLOR_ATTACHMENTS];
+			int n_dst = 0;
+			if (!c->bound_draw_framebuffer) {
+				pgl_resolve_window_color(&dsts[0]);
+				n_dst = 1;
+			} else {
+				glFBO* df = pgl_draw_user_fbo();
+				for (GLsizei i = 0; i < df->num_draw_buffers; ++i) {
+					if (df->draw_buffers[i] == GL_NONE)
+						continue;
+					pgl_resolve_fbo_color(df, df->draw_buffers[i], &dsts[n_dst]);
+					n_dst++;
+				}
+			}
+			if (n_dst) {
+				int x0 = dst_x0, y0 = dst_y0, x1 = dst_x1, y1 = dst_y1;
+				if (x0 < c->lx) x0 = c->lx;
+				if (y0 < c->ly) y0 = c->ly;
+				if (x1 > c->ux) x1 = c->ux;
+				if (y1 > c->uy) y1 = c->uy;
+				if (x1 > dsts[0].w) x1 = dsts[0].w;
+				if (y1 > dsts[0].h) y1 = dsts[0].h;
+				if (x0 < 0) x0 = 0;
+				if (y0 < 0) y0 = 0;
+				for (int y = y0; y < y1; ++y) {
+					for (int x = x0; x < x1; ++x) {
+						float tx = ((x - dstX0) + 0.5f) / (float)dst_w;
+						float ty = ((y - dstY0) + 0.5f) / (float)dst_h;
+						float sx = srcX0 + tx * (float)src_w - (filter == GL_LINEAR ? 0.5f : 0.f);
+						float sy = srcY0 + ty * (float)src_h - (filter == GL_LINEAR ? 0.5f : 0.f);
+						float r, g, b, a;
+						pgl_blit_sample_color(&src, sx, sy, filter, &r, &g, &b, &a);
+						for (int i = 0; i < n_dst; ++i)
+							pgl_blit_put_rgba(&dsts[i], x, y, r, g, b, a);
+					}
+				}
+			}
+		}
+	}
+
+#ifndef PGL_NO_DEPTH_NO_STENCIL
+	if (mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)) {
+		pglBlitDepth src, dst;
+		pgl_resolve_read_depth(&src);
+		pgl_resolve_draw_depth(&dst);
+		GLboolean do_z = (mask & GL_DEPTH_BUFFER_BIT) && src.valid && dst.valid;
+		GLboolean do_s = GL_FALSE;
+#  if !defined(PGL_NO_STENCIL)
+#    if defined(PGL_D16)
+		do_s = (mask & GL_STENCIL_BUFFER_BIT) && src.stencil && dst.stencil;
+#    else
+		do_s = (mask & GL_STENCIL_BUFFER_BIT) && src.valid && dst.valid &&
+		       !src.is_float && !dst.is_float;
+#    endif
+#  endif
+		if (do_z || do_s) {
+			int x0 = dst_x0, y0 = dst_y0, x1 = dst_x1, y1 = dst_y1;
+			if (x0 < c->lx) x0 = c->lx;
+			if (y0 < c->ly) y0 = c->ly;
+			if (x1 > c->ux) x1 = c->ux;
+			if (y1 > c->uy) y1 = c->uy;
+			if (x1 > dst.w) x1 = dst.w;
+			if (y1 > dst.h) y1 = dst.h;
+			if (x0 < 0) x0 = 0;
+			if (y0 < 0) y0 = 0;
+			for (int y = y0; y < y1; ++y) {
+				for (int x = x0; x < x1; ++x) {
+					float tx = ((x - dstX0) + 0.5f) / (float)dst_w;
+					float ty = ((y - dstY0) + 0.5f) / (float)dst_h;
+					int sx = (int)floorf(srcX0 + tx * (float)src_w);
+					int sy = (int)floorf(srcY0 + ty * (float)src_h);
+					if (do_z) {
+						float d = pgl_blit_get_depth(&src, sx, sy);
+						u8 st = 0;
+#  if !defined(PGL_NO_STENCIL)
+						if (do_s)
+							st = pgl_blit_get_stencil(&src, sx, sy);
+#  endif
+						pgl_blit_put_depth(&dst, x, y, d, do_s, st);
+					}
+#  if !defined(PGL_NO_STENCIL)
+					else if (do_s) {
+						pgl_blit_put_stencil(&dst, x, y, pgl_blit_get_stencil(&src, sx, sy));
+					}
+#  endif
+				}
+			}
+		}
+	}
+#endif
 }
 
 
@@ -14854,7 +15340,6 @@ PGLDEF vec4 texture_rect(GLuint tex, float x, float y)
 static vec4 pgl_sample_cube_face(const glTexture* t, const u8* level_data,
                                  int w, int h, int face, float x, float y, GLenum filter)
 {
-	Color* texdata = (Color*)level_data;
 	float dw = w - EPSILON;
 	float dh = h - EPSILON;
 	int plane = w * h;
@@ -14865,7 +15350,7 @@ static vec4 pgl_sample_cube_face(const glTexture* t, const u8* level_data,
 	if (filter == GL_NEAREST) {
 		i0 = wrap(floorf(xw), w, t->wrap_s);
 		j0 = wrap(floorf(yh), h, t->wrap_t);
-		return Color_to_v4(texdata[face * plane + j0 * w + i0]);
+		return pgl_load_texel(t, level_data, face * plane + pgl_tex_index_2d(t, i0, j0, w, h));
 	}
 
 	// LINEAR
@@ -14885,10 +15370,10 @@ static vec4 pgl_sample_cube_face(const glTexture* t, const u8* level_data,
 	beta = beta * beta * (3 - 2 * beta);
 #endif
 
-	vec4 cij = Color_to_v4(texdata[face * plane + j0 * w + i0]);
-	vec4 ci1j = Color_to_v4(texdata[face * plane + j0 * w + i1]);
-	vec4 cij1 = Color_to_v4(texdata[face * plane + j1 * w + i0]);
-	vec4 ci1j1 = Color_to_v4(texdata[face * plane + j1 * w + i1]);
+	vec4 cij = pgl_load_texel(t, level_data, face * plane + pgl_tex_index_2d(t, i0, j0, w, h));
+	vec4 ci1j = pgl_load_texel(t, level_data, face * plane + pgl_tex_index_2d(t, i1, j0, w, h));
+	vec4 cij1 = pgl_load_texel(t, level_data, face * plane + pgl_tex_index_2d(t, i0, j1, w, h));
+	vec4 ci1j1 = pgl_load_texel(t, level_data, face * plane + pgl_tex_index_2d(t, i1, j1, w, h));
 
 	cij = scale_v4(cij, (1 - alpha) * (1 - beta));
 	ci1j = scale_v4(ci1j, alpha * (1 - beta));
@@ -15358,6 +15843,7 @@ PGLDEF void pglBufferData(GLenum target, GLsizei size, const GLvoid* data, GLenu
 #define PGL_TEXIMAGE_MAP_VALIDATE(format, type) do { \
 	PGL_ERR((type) != GL_UNSIGNED_BYTE && (type) != GL_FLOAT, GL_INVALID_ENUM); \
 	PGL_ERR((format) != GL_RGBA && (format) != GL_RG && (format) != GL_RED && \
+	        (format) != GL_RGBA16F && (format) != GL_RGBA32F && \
 	        (format) != GL_DEPTH_COMPONENT, GL_INVALID_ENUM); \
 	PGL_ERR((type) == GL_UNSIGNED_BYTE && (format) != GL_RGBA && \
 	        (format) != GL_DEPTH_COMPONENT, GL_INVALID_OPERATION); \

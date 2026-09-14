@@ -400,7 +400,11 @@ bool handle_events()
 				return true;
 			break;
 		case SDL_WINDOWEVENT:
-			if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+			if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+			else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+			else if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;
 				pglResizeFramebuffer(scr_width, scr_height);

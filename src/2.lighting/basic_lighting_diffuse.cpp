@@ -263,6 +263,12 @@ bool handle_events()
 
 		case SDL_WINDOWEVENT:
 			switch (event.window.event) {
+			case SDL_WINDOWEVENT_FOCUS_GAINED:
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+				break;
+			case SDL_WINDOWEVENT_FOCUS_LOST:
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+				break;
 			case SDL_WINDOWEVENT_RESIZED:
 				scr_width = event.window.data1;
 				scr_height = event.window.data2;

@@ -47,8 +47,8 @@ endef
 ifeq ($(config),debug)
 OBJDIR = obj/Debug/1.7.1.camera_circle
 DEFINES += -DDEBUG
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -g
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -g
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -g
 ALL_LDFLAGS += $(LDFLAGS)
 
 else ifeq ($(config),release)

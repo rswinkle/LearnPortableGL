@@ -9,7 +9,8 @@ I won't be porting every single program.
 
 Some of the obvious changes are moving from GLFW to SDL2, not needing or using GLAD
 since we're not using real OpenGL, not needing the shader class, and using Premake
-instead of CMake.
+instead of CMake. We also removed the vendored libraries so you'll have to have things
+like SDL2 and assimp installed.
 
 Also, I'll be working and building on Linux and removed the
 windows libraries included but the code itself will still be portable. I may add
