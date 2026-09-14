@@ -448,12 +448,15 @@ bool handle_events()
 	if (state[SDL_SCANCODE_D]) camera.ProcessKeyboard(RIGHT, deltaTime);
 
 	if (state[SDL_SCANCODE_Q]) {
-		if (exposure > 0.0f)
+		if (exposure > 0.0f) {
 			exposure -= 0.001f;
-		else
-			exposure = 0.0f;
+			if (exposure < 0.0f)
+				exposure = 0.0f;
+			std::cout << "exposure: " << exposure << std::endl;
+		}
 	} else if (state[SDL_SCANCODE_E]) {
 		exposure += 0.001f;
+		std::cout << "exposure: " << exposure << std::endl;
 	}
 
 	return false;
