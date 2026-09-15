@@ -59,7 +59,7 @@ vec4 toglm(pgl_vec4 v);
 unsigned int scr_width = 640;
 unsigned int scr_height = 480;
 #ifndef NDEBUG
-const unsigned int SHADOW_WIDTH = 256, SHADOW_HEIGHT = 256;
+const unsigned int SHADOW_WIDTH = 512, SHADOW_HEIGHT = 512;
 #else
 const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 #endif
