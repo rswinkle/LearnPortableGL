@@ -257,10 +257,6 @@ int main()
 		gbufUniforms.model = scale(model, vec3(1.0f));
 		backpack.Draw(gbufShader, &gbufUniforms);
 
-		// PGL still depth-tests color-only FBOs against scratch Z (cleared to 0);
-		// OpenGL treats DEPTH_TEST as off when there is no depth buffer.
-		glDisable(GL_DEPTH_TEST);
-
 		glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glUseProgram(ssaoShader);
@@ -279,8 +275,6 @@ int main()
 		vec3 lightPosView = vec3(view * vec4(vec3(2.0f, 4.0f, -2.0f), 1.0f));
 		lightingUniforms.lightPos = lightPosView;
 		renderQuad();
-
-		glEnable(GL_DEPTH_TEST);
 
 		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
