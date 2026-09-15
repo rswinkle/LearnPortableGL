@@ -90,7 +90,8 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
-	GLenum smooth[] = { PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH2 };
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	GLenum smooth[] = { PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint shader = pglCreateProgram(lighting_vs, lighting_fs, 8, smooth, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
@@ -312,19 +313,20 @@ void lighting_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* bu
 	vec2 aTexCoords = vec2(((vec4*)vertex_attribs)[2]);
 
 	vec4 worldPos = u->model * aPos;
-	*(vec3*)&vs_output[0] = vec3(worldPos);
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	*(vec2*)&vs_output[0] = aTexCoords;
+	*(vec3*)&vs_output[2] = vec3(worldPos);
 	mat3 normalMatrix = transpose(inverse(mat3(u->model)));
-	*(vec3*)&vs_output[3] = u->reverse_normals ? normalMatrix * (-aNormal) : normalMatrix * aNormal;
-	*(vec2*)&vs_output[6] = aTexCoords;
+	*(vec3*)&vs_output[5] = u->reverse_normals ? normalMatrix * (-aNormal) : normalMatrix * aNormal;
 	*(vec4*)&builtins->gl_Position = u->projection * u->view * worldPos;
 }
 
 void lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
-	vec3 FragPos = *(vec3*)&fs_input[0];
-	vec3 Normal = *(vec3*)&fs_input[3];
-	vec2 TexCoords = *(vec2*)&fs_input[6];
+	vec2 TexCoords = *(vec2*)&fs_input[0];
+	vec3 FragPos = *(vec3*)&fs_input[2];
+	vec3 Normal = *(vec3*)&fs_input[5];
 
 	vec3 color = vec3(toglm(texture2D(u->tex, TexCoords.x, TexCoords.y)));
 	vec3 normal = normalize(Normal);

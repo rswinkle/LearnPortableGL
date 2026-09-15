@@ -85,7 +85,8 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
-	GLenum smooth8[] = { PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH2 };
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	GLenum smooth8[] = { PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint shader = pglCreateProgram(lighting_vs, lighting_fs, 8, smooth8, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
@@ -504,9 +505,10 @@ void lighting_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* bu
 	vec3 FragPos = vec3(u->model * aPos);
 	mat3 normalMatrix = transpose(inverse(mat3(u->model)));
 
-	*(vec3*)&vs_output[0] = FragPos;
-	*(vec3*)&vs_output[3] = normalize(normalMatrix * aNormal);
-	*(vec2*)&vs_output[6] = aTexCoords;
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	*(vec2*)&vs_output[0] = aTexCoords;
+	*(vec3*)&vs_output[2] = FragPos;
+	*(vec3*)&vs_output[5] = normalize(normalMatrix * aNormal);
 
 	*(vec4*)&builtins->gl_Position = u->projection * u->view * u->model * aPos;
 }
@@ -527,9 +529,9 @@ void lighting_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	vec3 FragPos = *(vec3*)&fs_input[0];
-	vec3 Normal = *(vec3*)&fs_input[3];
-	vec2 TexCoords = *(vec2*)&fs_input[6];
+	vec2 TexCoords = *(vec2*)&fs_input[0];
+	vec3 FragPos = *(vec3*)&fs_input[2];
+	vec3 Normal = *(vec3*)&fs_input[5];
 
 	vec3 color = vec3(toglm(texture2D(u->tex, TexCoords.x, TexCoords.y)));
 	vec3 normal = normalize(Normal);
@@ -638,20 +640,16 @@ unsigned int loadTexture(char const * path, bool gammaCorrection)
 	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, STBI_rgb_alpha);
 	if (data)
 	{
-		// PGL has no GL_SRGB textures. Decode sRGB into 8-bit linear when requested.
-		if (gammaCorrection) {
-			int n = width * height * 4;
-			for (int i = 0; i < n; i += 4) {
-				for (int c = 0; c < 3; ++c) {
-					float s = data[i + c] / 255.0f;
-					float lin = (s <= 0.04045f) ? (s / 12.92f) : powf((s + 0.055f) / 1.055f, 2.4f);
-					data[i + c] = (unsigned char)(lin * 255.0f + 0.5f);
-				}
-			}
-		}
+		GLenum internalFormat;
+		if (nrComponents == 1)
+			internalFormat = GL_RED;
+		else if (nrComponents == 3)
+			internalFormat = gammaCorrection ? GL_SRGB : GL_RGB;
+		else
+			internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
 
 		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);

@@ -90,7 +90,8 @@ int main()
 	stbi_set_flip_vertically_on_load(true);
 	glEnable(GL_DEPTH_TEST);
 
-	GLenum gSmooth[] = { PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH2 };
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	GLenum gSmooth[] = { PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint gbufShader = pglCreateProgram(gbuffer_vs, gbuffer_fs, 8, gSmooth, GL_FALSE);
 	glUseProgram(gbufShader);
 	pglSetUniform(&gbufUniforms);
@@ -320,18 +321,19 @@ void gbuffer_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* bui
 	vec3 aNormal = vec3(((vec4*)vertex_attribs)[1]);
 	vec2 aTexCoords = vec2(((vec4*)vertex_attribs)[2]);
 	vec4 worldPos = u->model * aPos;
-	*(vec3*)&vs_output[0] = vec3(worldPos);
-	*(vec3*)&vs_output[3] = transpose(inverse(mat3(u->model))) * aNormal;
-	*(vec2*)&vs_output[6] = aTexCoords;
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	*(vec2*)&vs_output[0] = aTexCoords;
+	*(vec3*)&vs_output[2] = vec3(worldPos);
+	*(vec3*)&vs_output[5] = transpose(inverse(mat3(u->model))) * aNormal;
 	*(vec4*)&builtins->gl_Position = u->projection * u->view * worldPos;
 }
 
 void gbuffer_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	Model_Uniforms* u = (Model_Uniforms*)uniforms;
-	vec3 FragPos = *(vec3*)&fs_input[0];
-	vec3 Normal = *(vec3*)&fs_input[3];
-	vec2 TexCoords = *(vec2*)&fs_input[6];
+	vec2 TexCoords = *(vec2*)&fs_input[0];
+	vec3 FragPos = *(vec3*)&fs_input[2];
+	vec3 Normal = *(vec3*)&fs_input[5];
 	*(vec4*)&builtins->gl_FragData[0] = vec4(FragPos, 1.0f);
 	*(vec4*)&builtins->gl_FragData[1] = vec4(normalize(Normal), 1.0f);
 	vec3 diff = vec3(toglm(texture2D(u->texture_diffuse[0], TexCoords.x, TexCoords.y)));

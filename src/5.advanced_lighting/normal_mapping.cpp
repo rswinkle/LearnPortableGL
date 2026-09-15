@@ -82,7 +82,8 @@ int main()
 
 	// Create our shader program and set uniform pointer
 	// -------------------------------------------------
-	GLenum smooth[] = { PGL_SMOOTH3, PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH3 };
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	GLenum smooth[] = { PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint shader = pglCreateProgram(shader_vs, shader_fs, 14, smooth, GL_FALSE);
 	glUseProgram(shader);
 	pglSetUniform(&uniforms);
@@ -363,8 +364,9 @@ void shader_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* buil
 	vec3 aTangent = vec3(((vec4*)vertex_attribs)[3]);
 
 	vec3 FragPos = vec3(u->model * aPos);
-	*(vec3*)&vs_output[0] = FragPos;
-	*(vec2*)&vs_output[3] = aTexCoords;
+	// PGL mip LOD uses the first even-aligned non-FLAT pair as UVs; original GLSL had FragPos first.
+	*(vec2*)&vs_output[0] = aTexCoords;
+	*(vec3*)&vs_output[2] = FragPos;
 
 	mat3 normalMatrix = transpose(inverse(mat3(u->model)));
 	vec3 T = normalize(normalMatrix * aTangent);
@@ -389,7 +391,7 @@ void shader_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 
-	vec2 TexCoords = *(vec2*)&fs_input[3];
+	vec2 TexCoords = *(vec2*)&fs_input[0];
 	vec3 TangentLightPos = *(vec3*)&fs_input[5];
 	vec3 TangentViewPos = *(vec3*)&fs_input[8];
 	vec3 TangentFragPos = *(vec3*)&fs_input[11];
