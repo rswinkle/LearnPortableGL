@@ -10,7 +10,8 @@ I won't be porting every single program.
 Some of the obvious changes are moving from GLFW to SDL2, not needing or using GLAD
 since we're not using real OpenGL, not needing the shader class, and using Premake
 instead of CMake. We also removed the vendored libraries so you'll have to have things
-like SDL2 and assimp installed.
+like SDL2 and assimp installed. We also updated stb_image.h to the latest to get
+rid of a few compile warnings.
 
 Also, I'll be working and building on Linux and removed the
 windows libraries included but the code itself will still be portable. I may add
@@ -20,5 +21,5 @@ Other than that I'll try to generally keep the organization of the repo the same
 as [his official one](https://github.com/JoeyDeVries/LearnOpenGL) except with
 a flattened bin directory (no chapter subdirectories) for convenience.
 
-Status: 5/8 chapters finished, ~62/97 programs ported
+Status: 6/8 chapters finished, ~78/97 programs ported
 
