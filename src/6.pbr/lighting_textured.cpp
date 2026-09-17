@@ -178,11 +178,11 @@ void renderSphere()
 		std::vector<unsigned int> indices;
 
 #ifndef NDEBUG
-		const unsigned int X_SEGMENTS = 16;
-		const unsigned int Y_SEGMENTS = 16;
-#else
 		const unsigned int X_SEGMENTS = 32;
 		const unsigned int Y_SEGMENTS = 32;
+#else
+		const unsigned int X_SEGMENTS = 64;
+		const unsigned int Y_SEGMENTS = 64;
 #endif
 		for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
 		{

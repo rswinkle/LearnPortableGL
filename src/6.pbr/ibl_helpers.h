@@ -9,17 +9,7 @@
 const float PI = 3.14159265359f;
 
 #ifndef NDEBUG
-const unsigned int ENV_SIZE = 64;
-const unsigned int IRR_SIZE = 16;
-const unsigned int PREFILTER_SIZE = 32;
-const unsigned int BRDF_SIZE = 128;
-const unsigned int X_SEGMENTS = 16;
-const unsigned int Y_SEGMENTS = 16;
-const int PREFILTER_SAMPLES = 32;
-const int BRDF_SAMPLES = 64;
-const float SAMPLE_DELTA = 0.1f;
-#else
-const unsigned int ENV_SIZE = 128;
+const unsigned int ENV_SIZE = 256;
 const unsigned int IRR_SIZE = 32;
 const unsigned int PREFILTER_SIZE = 64;
 const unsigned int BRDF_SIZE = 256;
@@ -28,6 +18,16 @@ const unsigned int Y_SEGMENTS = 32;
 const int PREFILTER_SAMPLES = 64;
 const int BRDF_SAMPLES = 128;
 const float SAMPLE_DELTA = 0.05f;
+#else
+const unsigned int ENV_SIZE = 512;
+const unsigned int IRR_SIZE = 32;
+const unsigned int PREFILTER_SIZE = 128;
+const unsigned int BRDF_SIZE = 512;
+const unsigned int X_SEGMENTS = 64;
+const unsigned int Y_SEGMENTS = 64;
+const int PREFILTER_SAMPLES = 128;
+const int BRDF_SAMPLES = 256;
+const float SAMPLE_DELTA = 0.025f;
 #endif
 const unsigned int MAX_PREFILTER_MIPS = 5;
 
