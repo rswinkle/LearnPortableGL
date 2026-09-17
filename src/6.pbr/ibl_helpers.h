@@ -1,6 +1,5 @@
-// Shared IBL geometry, HDR-face sampling, and Cook-Torrance helpers for ch6.
-// Not a LearnOpenGL file — PGL cannot use float color cubemaps or cubemap
-// color FBO attachments, so env/irradiance/prefilter are 6x 2D RGBA16F faces.
+// Shared IBL geometry, float cubemap setup, and Cook-Torrance helpers for ch6.
+// Env / irradiance / prefilter are GL_TEXTURE_CUBE_MAP + GL_RGBA16F (no RGB16F).
 #pragma once
 
 #include <vector>
@@ -37,51 +36,29 @@ static vec4 toglm(pgl_vec4 v)
 	return vec4(v.x, v.y, v.z, v.w);
 }
 
-static unsigned int make_float_tex(unsigned int w, unsigned int h)
+static unsigned int make_float_cubemap(unsigned int size, GLenum minFilter)
 {
 	unsigned int t;
 	glGenTextures(1, &t);
-	glBindTexture(GL_TEXTURE_2D, t);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, t);
+	for (unsigned int i = 0; i < 6; ++i)
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA16F, size, size, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, minFilter);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	return t;
 }
 
-// OpenGL cubemap face select (spec table 8.19), then sample a 2D float face.
-static vec3 sample_cube(const GLuint faces[6], vec3 v)
+static vec3 sample_cubemap(GLuint cube, vec3 v)
 {
-	vec3 a = abs(v);
-	int face;
-	vec2 uv;
-	if (a.x >= a.y && a.x >= a.z) {
-		if (v.x > 0.0f) { face = 0; uv = vec2(-v.z, -v.y) / a.x; }
-		else            { face = 1; uv = vec2( v.z, -v.y) / a.x; }
-	} else if (a.y >= a.x && a.y >= a.z) {
-		if (v.y > 0.0f) { face = 2; uv = vec2( v.x,  v.z) / a.y; }
-		else            { face = 3; uv = vec2( v.x, -v.z) / a.y; }
-	} else {
-		if (v.z > 0.0f) { face = 4; uv = vec2( v.x, -v.y) / a.z; }
-		else            { face = 5; uv = vec2(-v.x, -v.y) / a.z; }
-	}
-	uv = uv * 0.5f + 0.5f;
-	return vec3(toglm(texture2D(faces[face], uv.x, uv.y)));
+	return vec3(toglm(texture_cubemap(cube, v.x, v.y, v.z)));
 }
 
-static vec3 sample_cube_lod(const GLuint faces[][6], vec3 v, float lod)
+static vec3 sample_cubemap_lod(GLuint cube, vec3 v, float lod)
 {
-	lod = clamp(lod, 0.0f, (float)(MAX_PREFILTER_MIPS - 1));
-	int l0 = (int)floor(lod);
-	int l1 = l0 + 1;
-	if (l1 > (int)MAX_PREFILTER_MIPS - 1)
-		l1 = MAX_PREFILTER_MIPS - 1;
-	float f = lod - (float)l0;
-	vec3 a = sample_cube(faces[l0], v);
-	if (l0 == l1)
-		return a;
-	return mix(a, sample_cube(faces[l1], v), f);
+	return vec3(toglm(texture_cubemapLod(cube, v.x, v.y, v.z, lod)));
 }
 
 static float DistributionGGX(vec3 N, vec3 H, float roughness)

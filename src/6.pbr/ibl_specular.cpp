@@ -39,9 +39,9 @@ struct My_Uniforms
 	vec3 camPos;
 
 	GLuint hdrTexture;
-	GLuint envFaces[6];
-	GLuint irrFaces[6];
-	GLuint prefilterFaces[MAX_PREFILTER_MIPS][6];
+	GLuint envCubemap;
+	GLuint irradianceMap;
+	GLuint prefilterMap;
 	GLuint brdfLUT;
 	float sampleDelta;
 	int sampleCount;
@@ -82,7 +82,7 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	// No GL_TEXTURE_CUBE_MAP_SEAMLESS.
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
 	GLenum smoothPbr[] = { PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint pbrShader = pglCreateProgram(pbr_vs, pbr_fs, 8, smoothPbr, GL_FALSE);
@@ -161,16 +161,17 @@ int main()
 		std::cout << "Failed to load HDR image." << std::endl;
 	uniforms.hdrTexture = hdrTexture;
 
-	for (unsigned int i = 0; i < 6; ++i)
-		uniforms.envFaces[i] = make_float_tex(ENV_SIZE, ENV_SIZE);
-	for (unsigned int i = 0; i < 6; ++i)
-		uniforms.irrFaces[i] = make_float_tex(IRR_SIZE, IRR_SIZE);
+	uniforms.envCubemap = make_float_cubemap(ENV_SIZE, GL_LINEAR_MIPMAP_LINEAR);
+	uniforms.irradianceMap = make_float_cubemap(IRR_SIZE, GL_LINEAR);
+	uniforms.prefilterMap = make_float_cubemap(PREFILTER_SIZE, GL_LINEAR_MIPMAP_LINEAR);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, uniforms.prefilterMap);
+	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	mat4 captureProjection = perspective(radians(90.0f), 1.0f, 0.1f, 10.0f);
 	mat4 captureViews[6];
 	fill_capture_views(captureViews);
 
-	std::cout << "converting equirectangular HDR to 6 float faces (" << ENV_SIZE << ")..." << std::endl;
+	std::cout << "converting equirectangular HDR to cubemap (" << ENV_SIZE << ")..." << std::endl;
 	glUseProgram(equirectShader);
 	uniforms.projection = captureProjection;
 	glViewport(0, 0, ENV_SIZE, ENV_SIZE);
@@ -178,10 +179,12 @@ int main()
 	for (unsigned int i = 0; i < 6; ++i)
 	{
 		uniforms.view = captureViews[i];
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uniforms.envFaces[i], 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, uniforms.envCubemap, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		renderCube();
 	}
+	glBindTexture(GL_TEXTURE_CUBE_MAP, uniforms.envCubemap);
+	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	std::cout << "convolving irradiance (" << IRR_SIZE << ")..." << std::endl;
 	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
@@ -192,12 +195,11 @@ int main()
 	{
 		std::cout << "  irr face " << i << std::endl;
 		uniforms.view = captureViews[i];
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uniforms.irrFaces[i], 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, uniforms.irradianceMap, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		renderCube();
 	}
 
-	// Prefilter: one 2D float texture per face per mip (no float cubemap mips).
 	std::cout << "prefiltering env (" << PREFILTER_SIZE << ", " << PREFILTER_SAMPLES << " samples)..." << std::endl;
 	glUseProgram(prefilterShader);
 	uniforms.sampleCount = PREFILTER_SAMPLES;
@@ -206,9 +208,6 @@ int main()
 		unsigned int mipSize = (unsigned int)(PREFILTER_SIZE * std::pow(0.5, mip));
 		if (mipSize < 1)
 			mipSize = 1;
-		for (unsigned int i = 0; i < 6; ++i)
-			uniforms.prefilterFaces[mip][i] = make_float_tex(mipSize, mipSize);
-
 		glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipSize, mipSize);
 		glViewport(0, 0, mipSize, mipSize);
@@ -217,7 +216,7 @@ int main()
 		for (unsigned int i = 0; i < 6; ++i)
 		{
 			uniforms.view = captureViews[i];
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uniforms.prefilterFaces[mip][i], 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, uniforms.prefilterMap, mip);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			renderCube();
 		}
@@ -445,10 +444,10 @@ void pbr_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 
 	vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0f), F0, u->roughness);
 	vec3 kD = (vec3(1.0f) - F) * (1.0f - u->metallic);
-	vec3 irradiance = sample_cube(u->irrFaces, N);
+	vec3 irradiance = sample_cubemap(u->irradianceMap, N);
 	vec3 diffuse = irradiance * u->albedo;
 	const float MAX_REFLECTION_LOD = 4.0f;
-	vec3 prefilteredColor = sample_cube_lod(u->prefilterFaces, R, u->roughness * MAX_REFLECTION_LOD);
+	vec3 prefilteredColor = sample_cubemap_lod(u->prefilterMap, R, u->roughness * MAX_REFLECTION_LOD);
 	vec2 brdf = vec2(toglm(texture2D(u->brdfLUT, max(dot(N, V), 0.0f), u->roughness)));
 	vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 	vec3 color = (kD * diffuse + specular) * u->ao + Lo;
@@ -481,7 +480,7 @@ void irradiance_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 		{
 			vec3 tangentSample(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 			vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * N;
-			irradiance += sample_cube(u->envFaces, sampleVec) * cos(theta) * sin(theta);
+			irradiance += sample_cubemap(u->envCubemap, sampleVec) * cos(theta) * sin(theta);
 			nrSamples++;
 		}
 	}
@@ -505,8 +504,14 @@ void prefilter_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 		float NdotL = max(dot(N, L), 0.0f);
 		if (NdotL > 0.0f)
 		{
-			// No float cubemap mips: always sample env lod 0 (original uses textureLod).
-			prefilteredColor += sample_cube(u->envFaces, L) * NdotL;
+			float D = DistributionGGX(N, H, u->roughness);
+			float NdotH = max(dot(N, H), 0.0f);
+			float HdotV = max(dot(H, V), 0.0f);
+			float pdf = D * NdotH / (4.0f * HdotV) + 0.0001f;
+			float saTexel = 4.0f * PI / (6.0f * u->envResolution * u->envResolution);
+			float saSample = 1.0f / (float(SAMPLE_COUNT) * pdf + 0.0001f);
+			float mipLevel = u->roughness == 0.0f ? 0.0f : 0.5f * log2(saSample / saTexel);
+			prefilteredColor += sample_cubemap_lod(u->envCubemap, L, mipLevel) * NdotL;
 			totalWeight += NdotL;
 		}
 	}
@@ -548,7 +553,7 @@ void brdf_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 void background_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
-	vec3 envColor = sample_cube(u->envFaces, *(vec3*)&fs_input[0]);
+	vec3 envColor = sample_cubemap(u->envCubemap, *(vec3*)&fs_input[0]);
 	envColor = envColor / (envColor + vec3(1.0f));
 	envColor = pow(envColor, vec3(1.0f / 2.2f));
 	*(vec4*)&builtins->gl_FragColor = vec4(envColor, 1.0f);

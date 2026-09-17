@@ -21,17 +21,17 @@
 
 using namespace glm;
 
-// PGL: color cube faces cannot be FBO attachments, and cubemap color is
-// RGBA8 only (float cubemaps are depth). HDR env is 6x 2D RGBA16F faces.
+// HDR env is a float color cubemap (GL_RGBA16F; PGL has no RGB16F).
+// Capture attaches each cube face with glFramebufferTexture2D.
 
 #ifndef NDEBUG
-const unsigned int ENV_SIZE = 64;
-const unsigned int X_SEGMENTS = 16;
-const unsigned int Y_SEGMENTS = 16;
-#else
-const unsigned int ENV_SIZE = 128;
+const unsigned int ENV_SIZE = 256;
 const unsigned int X_SEGMENTS = 32;
 const unsigned int Y_SEGMENTS = 32;
+#else
+const unsigned int ENV_SIZE = 512;
+const unsigned int X_SEGMENTS = 64;
+const unsigned int Y_SEGMENTS = 64;
 #endif
 
 struct My_Uniforms
@@ -51,7 +51,7 @@ struct My_Uniforms
 	vec3 camPos;
 
 	GLuint hdrTexture;
-	GLuint envFaces[6];
+	GLuint envCubemap;
 };
 
 void setup_context();
@@ -59,8 +59,7 @@ void cleanup();
 bool handle_events();
 void renderSphere();
 void renderCube();
-unsigned int make_float_tex(unsigned int w, unsigned int h);
-vec3 sample_cube(const GLuint faces[6], vec3 v);
+unsigned int make_float_cubemap(unsigned int size);
 
 void pbr_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void pbr_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
@@ -168,8 +167,7 @@ int main()
 	}
 	uniforms.hdrTexture = hdrTexture;
 
-	for (unsigned int i = 0; i < 6; ++i)
-		uniforms.envFaces[i] = make_float_tex(ENV_SIZE, ENV_SIZE);
+	uniforms.envCubemap = make_float_cubemap(ENV_SIZE);
 
 	mat4 captureProjection = perspective(radians(90.0f), 1.0f, 0.1f, 10.0f);
 	mat4 captureViews[] =
@@ -182,7 +180,7 @@ int main()
 		lookAt(vec3(0.0f, 0.0f, 0.0f), vec3( 0.0f,  0.0f, -1.0f), vec3(0.0f, -1.0f,  0.0f))
 	};
 
-	std::cout << "converting equirectangular HDR to 6 float faces (" << ENV_SIZE << ")..." << std::endl;
+	std::cout << "converting equirectangular HDR to cubemap (" << ENV_SIZE << ")..." << std::endl;
 	glUseProgram(equirectShader);
 	uniforms.projection = captureProjection;
 	glViewport(0, 0, ENV_SIZE, ENV_SIZE);
@@ -190,7 +188,7 @@ int main()
 	for (unsigned int i = 0; i < 6; ++i)
 	{
 		uniforms.view = captureViews[i];
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uniforms.envFaces[i], 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, uniforms.envCubemap, 0);
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "capture FBO not complete (face " << i << ")" << std::endl;
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -260,36 +258,19 @@ int main()
 	return 0;
 }
 
-unsigned int make_float_tex(unsigned int w, unsigned int h)
+unsigned int make_float_cubemap(unsigned int size)
 {
 	unsigned int t;
 	glGenTextures(1, &t);
-	glBindTexture(GL_TEXTURE_2D, t);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, t);
+	for (unsigned int i = 0; i < 6; ++i)
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA16F, size, size, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	return t;
-}
-
-vec3 sample_cube(const GLuint faces[6], vec3 v)
-{
-	vec3 a = abs(v);
-	int face;
-	vec2 uv;
-	if (a.x >= a.y && a.x >= a.z) {
-		if (v.x > 0.0f) { face = 0; uv = vec2(-v.z, -v.y) / a.x; }
-		else            { face = 1; uv = vec2( v.z, -v.y) / a.x; }
-	} else if (a.y >= a.x && a.y >= a.z) {
-		if (v.y > 0.0f) { face = 2; uv = vec2( v.x,  v.z) / a.y; }
-		else            { face = 3; uv = vec2( v.x, -v.z) / a.y; }
-	} else {
-		if (v.z > 0.0f) { face = 4; uv = vec2( v.x, -v.y) / a.z; }
-		else            { face = 5; uv = vec2(-v.x, -v.y) / a.z; }
-	}
-	uv = uv * 0.5f + 0.5f;
-	return vec3(toglm(texture2D(faces[face], uv.x, uv.y)));
 }
 
 unsigned int sphereVAO = 0;
@@ -658,7 +639,7 @@ void background_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 	vec3 WorldPos = *(vec3*)&fs_input[0];
-	vec3 envColor = sample_cube(u->envFaces, WorldPos);
+	vec3 envColor = vec3(toglm(texture_cubemap(u->envCubemap, WorldPos.x, WorldPos.y, WorldPos.z)));
 	envColor = envColor / (envColor + vec3(1.0f));
 	envColor = pow(envColor, vec3(1.0f / 2.2f));
 	*(vec4*)&builtins->gl_FragColor = vec4(envColor, 1.0f);
