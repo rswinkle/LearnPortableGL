@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
 			float currentFrame = SDL_GetTicks() / 1000.0f;
 			deltaTime = currentFrame - lastFrame;
 			lastFrame = currentFrame;
+			if (deltaTime > 0.05f)
+				deltaTime = 0.05f;
 
 			if (handle_events(Breakout))
 				break;

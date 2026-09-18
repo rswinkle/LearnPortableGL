@@ -75,11 +75,7 @@ void Game::Init()
 	ResourceManager::LoadTexture(FileSystem::getPath("resources/textures/powerup_passthrough.png").c_str(), true, "powerup_passthrough");
 
 	Renderer = new SpriteRenderer(ResourceManager::GetShader("sprite"));
-#ifndef NDEBUG
-	Particles = new ParticleGenerator(ResourceManager::GetShader("particle"), ResourceManager::GetTexture("particle"), 100);
-#else
 	Particles = new ParticleGenerator(ResourceManager::GetShader("particle"), ResourceManager::GetTexture("particle"), 500);
-#endif
 	Effects = new PostProcessor(ResourceManager::GetShader("postprocessing"), this->Width, this->Height);
 	Text = new TextRenderer(this->Width, this->Height);
 	Text->Load(FileSystem::getPath("resources/fonts/OCRAEXT.TTF").c_str(), 24);
@@ -105,7 +101,15 @@ void Game::Update(float dt)
 {
 	Ball->Move(dt, this->Width);
 	this->DoCollisions();
-	Particles->Update(dt, *Ball, 2, glm::vec2(Ball->Radius / 2.0f));
+	// Original spawns 2 particles per frame (~120/s at 60 Hz). Spawn by time
+	// so a slow software frame still builds the additive navy trail.
+	static float particle_spawn_accum = 0.0f;
+	particle_spawn_accum += 120.0f * dt;
+	unsigned int newParticles = (unsigned int)particle_spawn_accum;
+	particle_spawn_accum -= (float)newParticles;
+	if (newParticles > 40)
+		newParticles = 40;
+	Particles->Update(dt, *Ball, newParticles, glm::vec2(Ball->Radius / 2.0f));
 	this->UpdatePowerUps(dt);
 	if (ShakeTime > 0.0f)
 	{
