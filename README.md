@@ -21,5 +21,5 @@ Other than that I'll try to generally keep the organization of the repo the same
 as [his official one](https://github.com/JoeyDeVries/LearnOpenGL) except with
 a flattened bin directory (no chapter subdirectories) for convenience.
 
-Status: 6/8 chapters finished, ~78/97 programs ported
+Status: 7/8 chapters finished, ~81/97 programs ported
 
