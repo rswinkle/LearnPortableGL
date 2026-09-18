@@ -34,7 +34,7 @@ INCLUDES += -I../inc -I../src/7.in_practice/2d_game -I/usr/include/freetype2
 FORCE_INCLUDE +=
 ALL_CPPFLAGS += $(CPPFLAGS) -MD -MP $(DEFINES) $(INCLUDES)
 ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-LIBS += -lSDL2 -lfreetype
+LIBS += -lSDL2 -lfreetype -lSDL2_mixer
 LDDEPS +=
 LINKCMD = $(CXX) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
 define PREBUILDCMDS
@@ -80,6 +80,7 @@ GENERATED += $(OBJDIR)/program.o
 GENERATED += $(OBJDIR)/resource_manager.o
 GENERATED += $(OBJDIR)/shader.o
 GENERATED += $(OBJDIR)/shaders.o
+GENERATED += $(OBJDIR)/sound.o
 GENERATED += $(OBJDIR)/sprite_renderer.o
 GENERATED += $(OBJDIR)/text_renderer.o
 GENERATED += $(OBJDIR)/texture.o
@@ -93,6 +94,7 @@ OBJECTS += $(OBJDIR)/program.o
 OBJECTS += $(OBJDIR)/resource_manager.o
 OBJECTS += $(OBJDIR)/shader.o
 OBJECTS += $(OBJDIR)/shaders.o
+OBJECTS += $(OBJDIR)/sound.o
 OBJECTS += $(OBJDIR)/sprite_renderer.o
 OBJECTS += $(OBJDIR)/text_renderer.o
 OBJECTS += $(OBJDIR)/texture.o
@@ -187,6 +189,9 @@ $(OBJDIR)/shader.o: ../src/7.in_practice/2d_game/shader.cpp
 	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/shaders.o: ../src/7.in_practice/2d_game/shaders.cpp
+	@echo "$(notdir $<)"
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/sound.o: ../src/7.in_practice/2d_game/sound.cpp
 	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/sprite_renderer.o: ../src/7.in_practice/2d_game/sprite_renderer.cpp

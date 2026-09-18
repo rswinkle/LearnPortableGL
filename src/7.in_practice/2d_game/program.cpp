@@ -16,6 +16,7 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 
 const unsigned int SCREEN_WIDTH = 800;
 const unsigned int SCREEN_HEIGHT = 600;
@@ -106,10 +107,14 @@ static bool handle_events(Game &game)
 static void setup_context()
 {
 	SDL_SetMainReady();
-	if (SDL_Init(SDL_INIT_VIDEO)) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
 		std::cout << "SDL_Init error: " << SDL_GetError() << "\n";
 		exit(0);
 	}
+	if ((Mix_Init(MIX_INIT_MP3) & MIX_INIT_MP3) == 0)
+		std::cout << "Mix_Init: " << Mix_GetError() << "\n";
+	if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+		std::cout << "Mix_OpenAudio: " << Mix_GetError() << "\n";
 	window = SDL_CreateWindow("Breakout", 100, 100, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
 	if (!window) {
 		std::cerr << "Failed to create window\n";
@@ -131,5 +136,7 @@ static void cleanup()
 	SDL_DestroyTexture(tex);
 	SDL_DestroyRenderer(ren);
 	SDL_DestroyWindow(window);
+	Mix_CloseAudio();
+	Mix_Quit();
 	SDL_Quit();
 }

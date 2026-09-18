@@ -19,6 +19,7 @@
 #include "text_renderer.h"
 #include "shaders.h"
 #include "game_uniforms.h"
+#include "sound.h"
 
 SpriteRenderer    *Renderer;
 GameObject        *Player;
@@ -42,6 +43,7 @@ Game::~Game()
 	delete Particles;
 	delete Effects;
 	delete Text;
+	Sound_Shutdown();
 }
 
 void Game::Init()
@@ -96,6 +98,7 @@ void Game::Init()
 	Player = new GameObject(playerPos, PLAYER_SIZE, ResourceManager::GetTexture("paddle"));
 	glm::vec2 ballPos = playerPos + glm::vec2(PLAYER_SIZE.x / 2.0f - BALL_RADIUS, -BALL_RADIUS * 2.0f);
 	Ball = new BallObject(ballPos, BALL_RADIUS, INITIAL_BALL_VELOCITY, ResourceManager::GetTexture("face"));
+	Sound_Play(FileSystem::getPath("resources/audio/breakout.mp3").c_str(), true);
 }
 
 void Game::Update(float dt)
@@ -365,11 +368,13 @@ void Game::DoCollisions()
 				{
 					box.Destroyed = true;
 					this->SpawnPowerUps(box);
+					Sound_Play(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
 				}
 				else
 				{
 					ShakeTime = 0.05f;
 					Effects->Shake = true;
+					Sound_Play(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
 				}
 				Direction dir = std::get<1>(collision);
 				glm::vec2 diff_vector = std::get<2>(collision);
@@ -409,6 +414,7 @@ void Game::DoCollisions()
 				ActivatePowerUp(powerUp);
 				powerUp.Destroyed = true;
 				powerUp.Activated = true;
+				Sound_Play(FileSystem::getPath("resources/audio/powerup.wav").c_str(), false);
 			}
 		}
 	}
@@ -425,6 +431,7 @@ void Game::DoCollisions()
 		Ball->Velocity = glm::normalize(Ball->Velocity) * glm::length(oldVelocity);
 		Ball->Velocity.y = -1.0f * glm::abs(Ball->Velocity.y);
 		Ball->Stuck = Ball->Sticky;
+		Sound_Play(FileSystem::getPath("resources/audio/bleep.wav").c_str(), false);
 	}
 }
 
