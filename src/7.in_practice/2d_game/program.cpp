@@ -17,6 +17,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+#include <fps_log.h>
 
 const unsigned int SCREEN_WIDTH = 800;
 const unsigned int SCREEN_HEIGHT = 600;
@@ -52,6 +53,8 @@ int main(int argc, char *argv[])
 
 		while (true)
 		{
+			fps_log_tick();
+
 			float currentFrame = SDL_GetTicks() / 1000.0f;
 			deltaTime = currentFrame - lastFrame;
 			lastFrame = currentFrame;

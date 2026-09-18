@@ -13,6 +13,7 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include <fps_log.h>
 
 using namespace glm;
 
@@ -135,22 +136,19 @@ int main()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
 
 
-	int old_time = 0;
 
 	// render loop
 	// -----------
 	while (true)
 	{
+		fps_log_tick();
+
 		// per-frame time logic
 		// --------------------
 		int currentFrame = SDL_GetTicks();
 		deltaTime = (currentFrame - lastFrame)/1000.0f;
 		lastFrame = currentFrame;
 
-		if (currentFrame - old_time > 3000) {
-			printf("%d FPS\n", (int)(1.0f/deltaTime));
-			old_time = currentFrame;
-		}
 
 		// input
 		// -----

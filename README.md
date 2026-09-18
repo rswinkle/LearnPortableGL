@@ -21,5 +21,10 @@ Other than that I'll try to generally keep the organization of the repo the same
 as [his official one](https://github.com/JoeyDeVries/LearnOpenGL) except with
 a flattened bin directory (no chapter subdirectories) for convenience.
 
+Programs print an averaged FPS line every 3 seconds (`3000 12 FPS`). Define
+`FPS_EVERY_N_SECS` before including `fps_log.h` to change the interval. They
+use SDL's software renderer with no vsync; the log is there so you can see
+whether a demo is actually outrunning the display.
+
 Status: 7/8 chapters finished, ~81/97 programs ported
 

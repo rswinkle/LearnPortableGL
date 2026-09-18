@@ -13,6 +13,7 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include <fps_log.h>
 
 // This means we have to define PGL_PREFIX_TYPES up above
 // to prevent clashing so PGL's GLSL types get a pgl_ prefix
@@ -159,6 +160,8 @@ int main()
 	// -----------
 	while (true)
 	{
+		fps_log_tick();
+
 		// per-frame time logic
 		// --------------------
 		int currentFrame = SDL_GetTicks();

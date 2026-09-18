@@ -13,6 +13,7 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include <fps_log.h>
 
 void setup_context();
 void cleanup();
@@ -175,6 +176,8 @@ int main()
 	// -----------
 	while (true)
 	{
+		fps_log_tick();
+
 		// input
 		// -----
 		if (handle_events())

@@ -5,6 +5,7 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include <fps_log.h>
 
 bool handle_events();
 
@@ -52,6 +53,8 @@ int main()
 	// -----------
 	while (true)
 	{
+		fps_log_tick();
+
 		// input
 		// -----
 		if (handle_events())

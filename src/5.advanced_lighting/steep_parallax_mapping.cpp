@@ -16,6 +16,7 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+#include <fps_log.h>
 
 using namespace glm;
 
@@ -98,6 +99,8 @@ int main()
 
 	while (true)
 	{
+		fps_log_tick();
+
 		int currentFrame = SDL_GetTicks();
 		deltaTime = (currentFrame - lastFrame)/1000.0f;
 		lastFrame = currentFrame;
