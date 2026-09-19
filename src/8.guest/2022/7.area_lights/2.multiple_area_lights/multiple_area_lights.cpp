@@ -97,7 +97,7 @@ int main()
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 	glEnable(GL_DEPTH_TEST);
 
-	GLenum smooth8[] = { PGL_SMOOTH3, PGL_SMOOTH3, PGL_SMOOTH2 };
+	GLenum smooth8[] = { PGL_SMOOTH2, PGL_SMOOTH3, PGL_SMOOTH3 };
 	GLuint shaderLTC = pglCreateProgram(ltc_vs, ltc_fs, 8, smooth8, GL_FALSE);
 	GLuint shaderLight = pglCreateProgram(plane_vs, plane_fs, 0, NULL, GL_FALSE);
 	glUseProgram(shaderLTC); pglSetUniform(&uniforms);
@@ -200,18 +200,19 @@ void ltc_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtin
 	vec3 aN = vec3(((vec4*)vertex_attribs)[1]);
 	vec2 aUv = vec2(((vec4*)vertex_attribs)[2]);
 	vec3 worldpos = vec3(u->model * vec4(aPos, 1.0f));
-	*(vec3*)&vs_output[0] = worldpos;
-	*(vec3*)&vs_output[3] = u->normalMatrix * aN;
-	*(vec2*)&vs_output[6] = aUv;
+	// Texcoords first: PGL auto-LOD uses vs_output[0..1] as UV.
+	*(vec2*)&vs_output[0] = aUv;
+	*(vec3*)&vs_output[2] = worldpos;
+	*(vec3*)&vs_output[5] = u->normalMatrix * aN;
 	*(vec4*)&builtins->gl_Position = u->projection * u->view * vec4(worldpos, 1.0f);
 }
 
 void ltc_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 {
 	My_Uniforms* u = (My_Uniforms*)uniforms;
-	vec3 worldPosition = *(vec3*)&fs_input[0];
-	vec3 worldNormal = *(vec3*)&fs_input[3];
-	vec2 texcoord = *(vec2*)&fs_input[6];
+	vec2 texcoord = *(vec2*)&fs_input[0];
+	vec3 worldPosition = *(vec3*)&fs_input[2];
+	vec3 worldNormal = *(vec3*)&fs_input[5];
 	vec3 mDiffuse = vec3(toglm(texture2D(u->diffuse, texcoord.x, texcoord.y)));
 	vec3 mSpecular = pow(vec3(0.23f), vec3(2.2f));
 	vec3 N = normalize(worldNormal);
