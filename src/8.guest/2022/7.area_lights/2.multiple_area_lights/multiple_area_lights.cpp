@@ -36,6 +36,7 @@ struct My_Uniforms {
 	GLuint LTC1, LTC2, diffuse;
 	vec4 albedoRoughness;
 	vec3 lightColor;
+	vec3 lightColor2;
 };
 
 void setup_context();
@@ -57,7 +58,10 @@ vec4 toglm(pgl_vec4 v) { return vec4(v.x, v.y, v.z, v.w); }
 
 unsigned int scr_width = 640, scr_height = 480;
 const vec3 LIGHT_COLOR = Color::BurlyWood;
-Camera camera(vec3(0.0f, 1.0f, 0.5f), vec3(0.0f, 1.0f, 0.0f), 180.0f, 0.0f);
+const vec3 LIGHT_COLOR2 = Color::SteelBlue;
+const vec3 LIGHT2_OFFSET = vec3(16.0f, 0.0f, 0.0f);
+// Original multi-light overview: both quads (x=-8 and x=+8) in frame.
+Camera camera(vec3(-0.224556f, 10.4038f, -18.9259f), vec3(0.0f, 1.0f, 0.0f), 89.3999f, -34.3001f);
 float deltaTime = 0.0f, lastFrame = 0.0f;
 vec3 areaLightTranslate(0.0f);
 float roughness = 0.5f;
@@ -115,6 +119,7 @@ int main()
 	uniforms.areaLight.twoSided = twoSided;
 	uniforms.albedoRoughness = vec4(Color::SlateGray, roughness);
 	uniforms.lightColor = LIGHT_COLOR;
+	uniforms.lightColor2 = LIGHT_COLOR2;
 	configureMockupData();
 
 	while (true)
@@ -143,7 +148,11 @@ int main()
 		renderPlane();
 
 		glUseProgram(shaderLight);
+		uniforms.lightColor = LIGHT_COLOR;
 		uniforms.model = translate(mat4(1.0f), areaLightTranslate);
+		renderAreaLight();
+		uniforms.lightColor = LIGHT_COLOR2;
+		uniforms.model = translate(mat4(1.0f), areaLightTranslate + LIGHT2_OFFSET);
 		renderAreaLight();
 
 		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
@@ -224,19 +233,22 @@ void ltc_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	vec4 t1 = toglm(texture2D(u->LTC1, uv.x, uv.y));
 	vec4 t2 = toglm(texture2D(u->LTC2, uv.x, uv.y));
 	mat3 Minv = mat3(vec3(t1.x, 0, t1.y), vec3(0, 1, 0), vec3(t1.z, 0, t1.w));
+	vec3 fresnel = mSpecular * t2.x + (1.0f - mSpecular) * t2.y;
+	vec3 result(0.0f);
 	vec3 pts[4];
 	for (int i = 0; i < 4; i++)
 		pts[i] = u->areaLight.points[i] + u->areaLightTranslate;
 	vec3 diffuse = LTC_Evaluate(N, V, worldPosition, mat3(1.0f), pts, u->areaLight.twoSided != 0, u->LTC2);
 	vec3 specular = LTC_Evaluate(N, V, worldPosition, Minv, pts, u->areaLight.twoSided != 0, u->LTC2);
+	specular *= fresnel;
+	result += u->areaLight.color * u->areaLight.intensity * (specular + mDiffuse * diffuse);
 	vec3 pts2[4];
-	vec3 off2 = vec3(16.0f, 0.0f, 0.0f);
 	for (int i = 0; i < 4; i++)
-		pts2[i] = u->areaLight.points[i] + u->areaLightTranslate + off2;
-	diffuse += LTC_Evaluate(N, V, worldPosition, mat3(1.0f), pts2, u->areaLight.twoSided != 0, u->LTC2);
-	specular += LTC_Evaluate(N, V, worldPosition, Minv, pts2, u->areaLight.twoSided != 0, u->LTC2);
-	specular *= mSpecular * t2.x + (1.0f - mSpecular) * t2.y;
-	vec3 result = u->areaLight.color * u->areaLight.intensity * (specular + mDiffuse * diffuse);
+		pts2[i] = u->areaLight.points[i] + u->areaLightTranslate + LIGHT2_OFFSET;
+	diffuse = LTC_Evaluate(N, V, worldPosition, mat3(1.0f), pts2, u->areaLight.twoSided != 0, u->LTC2);
+	specular = LTC_Evaluate(N, V, worldPosition, Minv, pts2, u->areaLight.twoSided != 0, u->LTC2);
+	specular *= fresnel;
+	result += u->lightColor2 * u->areaLight.intensity * (specular + mDiffuse * diffuse);
 	result = pow(result, vec3(1.0f / 2.2f));
 	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);
 }
