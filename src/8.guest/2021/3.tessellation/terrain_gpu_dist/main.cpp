@@ -86,16 +86,14 @@ int main()
 
 	std::vector<unsigned int> indices;
 	for (int y = 0; y < gh - 1; y++) {
-		for (int x = 0; x < gw - 1; x++) {
-			unsigned int i0 = y * gw + x;
-			unsigned int i1 = y * gw + x + 1;
-			unsigned int i2 = (y + 1) * gw + x;
-			unsigned int i3 = (y + 1) * gw + x + 1;
-			indices.push_back(i0); indices.push_back(i2); indices.push_back(i1);
-			indices.push_back(i1); indices.push_back(i2); indices.push_back(i3);
+		for (int x = 0; x < gw; x++) {
+			indices.push_back(y * gw + x);
+			indices.push_back((y + 1) * gw + x);
 		}
 	}
-	std::cout << "Created " << indices.size() / 3 << " triangles" << std::endl;
+	const int numStrips = gh - 1;
+	const int vertsPerStrip = gw * 2;
+	std::cout << "Created lattice of " << numStrips << " strips with " << (vertsPerStrip - 2) << " triangles each" << std::endl;
 
 	unsigned int terrainVAO, terrainVBO, terrainIBO;
 	glGenVertexArrays(1, &terrainVAO);
@@ -126,7 +124,10 @@ int main()
 		uniforms.view = camera.GetViewMatrix();
 		uniforms.model = mat4(1.0f);
 		glBindVertexArray(terrainVAO);
-		glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
+		for (int strip = 0; strip < numStrips; strip++) {
+			glDrawElements(GL_TRIANGLE_STRIP, vertsPerStrip, GL_UNSIGNED_INT,
+				(void*)(sizeof(unsigned int) * vertsPerStrip * strip));
+		}
 
 		SDL_UpdateTexture(tex, NULL, bbufpix, scr_width * sizeof(pix_t));
 		SDL_RenderCopy(ren, tex, NULL, NULL);
