@@ -81,6 +81,8 @@ struct Model_Uniforms
 	GLuint texture_specular[4];
 	GLuint texture_normal[4];
 	GLuint texture_height[4];
+
+	glm::mat4 finalBonesMatrices[100];
 };
 
 #endif

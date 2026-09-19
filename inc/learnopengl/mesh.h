@@ -23,10 +23,10 @@ struct Vertex {
 	glm::vec3 Tangent;
 	// bitangent
 	glm::vec3 Bitangent;
-	//bone indexes which will influence this vertex
-	int m_BoneIDs[MAX_BONE_INFLUENCE];
+	//bone indexes which will influence this vertex (floats: PGL has no integer attribs)
+	float m_BoneIDs[MAX_BONE_INFLUENCE] = { -1.0f, -1.0f, -1.0f, -1.0f };
 	//weights from each bone
-	float m_Weights[MAX_BONE_INFLUENCE];
+	float m_Weights[MAX_BONE_INFLUENCE] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };
 
 struct Texture {
@@ -129,26 +129,11 @@ private:
 		// vertex texture coords
 		glEnableVertexAttribArray(2);
 		pglVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, TexCoords));
-
-		/*
-		// vertex tangent
-		glEnableVertexAttribArray(3);
-		pglVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Tangent));
-		// vertex bitangent
-		glEnableVertexAttribArray(4);
-		pglVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Bitangent));
-
-		// ids
-		//glEnableVertexAttribArray(5);
-		// TODO is there any reason to use IPointer or LPointer?  Well PGL doesn't support anything put float
-		// attributes anyway right now so...
-		//pglVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), offsetof(Vertex, m_BoneIDs));
-
-		// weights
+		glEnableVertexAttribArray(5);
+		pglVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, m_BoneIDs));
 		glEnableVertexAttribArray(6);
 		pglVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, m_Weights));
 		glBindVertexArray(0);
-		*/
 	}
 };
 #endif

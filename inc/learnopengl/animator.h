@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <cmath>
 #include <map>
 #include <vector>
 #include <assimp/scene.h>
@@ -11,7 +12,7 @@
 class Animator
 {
 public:
-	Animator::Animator(Animation* animation)
+	Animator(Animation* animation)
 	{
 		m_CurrentTime = 0.0;
 		m_CurrentAnimation = animation;
@@ -22,7 +23,7 @@ public:
 			m_FinalBoneMatrices.push_back(glm::mat4(1.0f));
 	}
 
-	void Animator::UpdateAnimation(float dt)
+	void UpdateAnimation(float dt)
 	{
 		m_DeltaTime = dt;
 		if (m_CurrentAnimation)
@@ -33,13 +34,13 @@ public:
 		}
 	}
 
-	void Animator::PlayAnimation(Animation* pAnimation)
+	void PlayAnimation(Animation* pAnimation)
 	{
 		m_CurrentAnimation = pAnimation;
 		m_CurrentTime = 0.0f;
 	}
 
-	void Animator::CalculateBoneTransform(const AssimpNodeData* node, glm::mat4 parentTransform)
+	void CalculateBoneTransform(const AssimpNodeData* node, glm::mat4 parentTransform)
 	{
 		std::string nodeName = node->name;
 		glm::mat4 nodeTransform = node->transformation;

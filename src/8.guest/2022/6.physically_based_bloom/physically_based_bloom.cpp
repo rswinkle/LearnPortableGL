@@ -36,6 +36,7 @@ struct My_Uniforms
 	int bloom;
 	int horizontal;
 	float exposure;
+	int programChoice;
 };
 
 void setup_context();
@@ -61,6 +62,7 @@ const unsigned int fbo_height = 480;
 unsigned int scr_width = fbo_width;
 unsigned int scr_height = fbo_height;
 bool bloom = true;
+int programChoice = 3;
 float exposure = 1.0f;
 
 Camera camera(vec3(0.0f, 0.0f, 5.0f));
@@ -171,6 +173,7 @@ int main()
 	}
 	uniforms.bloom = bloom;
 	uniforms.exposure = exposure;
+	uniforms.programChoice = programChoice;
 
 	while (true)
 	{
@@ -257,24 +260,27 @@ int main()
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		// original: 10 ping-pong blur passes (5 horizontal + 5 vertical)
-		int horizontal = 1, first_iteration = 1;
-		const unsigned int amount = 10;
-		glDisable(GL_DEPTH_TEST);
-		glViewport(0, 0, fbo_width, fbo_height);
-		glUseProgram(shaderBlur);
-		for (unsigned int i = 0; i < amount; i++)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
-			uniforms.horizontal = horizontal;
-			uniforms.tex = first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal];
-			glBindTexture(GL_TEXTURE_2D, uniforms.tex);
-			renderQuad();
-			horizontal = !horizontal;
-			if (first_iteration)
-				first_iteration = 0;
+		int horizontal = 1;
+		if (programChoice != 1) {
+			// original: 10 ping-pong blur passes (5 horizontal + 5 vertical)
+			int first_iteration = 1;
+			const unsigned int amount = 10;
+			glDisable(GL_DEPTH_TEST);
+			glViewport(0, 0, fbo_width, fbo_height);
+			glUseProgram(shaderBlur);
+			for (unsigned int i = 0; i < amount; i++)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+				uniforms.horizontal = horizontal;
+				uniforms.tex = first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal];
+				glBindTexture(GL_TEXTURE_2D, uniforms.tex);
+				renderQuad();
+				horizontal = !horizontal;
+				if (first_iteration)
+					first_iteration = 0;
+			}
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		glViewport(0, 0, scr_width, scr_height);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -282,6 +288,7 @@ int main()
 		uniforms.tex = colorBuffers[0];
 		uniforms.bloomBlur = pingpongColorbuffers[!horizontal];
 		uniforms.bloom = bloom;
+		uniforms.programChoice = programChoice;
 		uniforms.exposure = exposure;
 		renderQuad();
 
@@ -409,8 +416,32 @@ bool handle_events()
 			case SDL_SCANCODE_SPACE:
 				if (!event.key.repeat) {
 					bloom = !bloom;
-					uniforms.bloom = bloom;
+					programChoice = bloom ? 3 : 1;
 					std::cout << "bloom: " << (bloom ? "on" : "off") << "| exposure: " << exposure << std::endl;
+				}
+				break;
+			case SDL_SCANCODE_1:
+			case SDL_SCANCODE_KP_1:
+				if (!event.key.repeat) {
+					programChoice = 1;
+					bloom = false;
+					std::cout << "bloom mode: 1 none\n";
+				}
+				break;
+			case SDL_SCANCODE_2:
+			case SDL_SCANCODE_KP_2:
+				if (!event.key.repeat) {
+					programChoice = 2;
+					bloom = true;
+					std::cout << "bloom mode: 2 old additive\n";
+				}
+				break;
+			case SDL_SCANCODE_3:
+			case SDL_SCANCODE_KP_3:
+				if (!event.key.repeat) {
+					programChoice = 3;
+					bloom = true;
+					std::cout << "bloom mode: 3 new mix\n";
 				}
 				break;
 			default:
@@ -620,8 +651,11 @@ void bloom_final_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	const float gamma = 2.2f;
 	vec3 hdrColor = vec3(toglm(texture2D(u->tex, TexCoords.x, TexCoords.y)));
 	vec3 bloomColor = vec3(toglm(texture2D(u->bloomBlur, TexCoords.x, TexCoords.y)));
-	if (u->bloom)
-		hdrColor += bloomColor;
+	if (u->programChoice == 2)
+		hdrColor += bloomColor; // old additive
+	else if (u->programChoice == 3)
+		hdrColor = mix(hdrColor, bloomColor, 0.04f); // new mix
+	// programChoice 1: scene only
 	vec3 result = vec3(1.0f) - exp(-hdrColor * u->exposure);
 	result = pow(result, vec3(1.0f / gamma));
 	*(vec4*)&builtins->gl_FragColor = vec4(result, 1.0f);

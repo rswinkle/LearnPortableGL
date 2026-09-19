@@ -1,10 +1,17 @@
 #ifndef ENTITY_H
 #define ENTITY_H
 
-#include <glm/glm.hpp> //glm::mat4
-#include <list> //std::list
-#include <array> //std::array
-#include <memory> //std::unique_ptr
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <list>
+#include <array>
+#include <memory>
+#include <algorithm>
+#include <limits>
+#include <cmath>
+#include <learnopengl/model.h>
+#include <learnopengl/camera.h>
+#include <uniforms.h>
 
 class Transform
 {
@@ -63,9 +70,9 @@ public:
 		m_isDirty = true;
 	}
 
-	const glm::vec3& getGlobalPosition() const
+	glm::vec3 getGlobalPosition() const
 	{
-		return m_modelMatrix[3];
+		return glm::vec3(m_modelMatrix[3]);
 	}
 
 	const glm::vec3& getLocalPosition() const
@@ -460,19 +467,19 @@ public:
 	}
 
 
-	void drawSelfAndChild(const Frustum& frustum, Shader& ourShader, unsigned int& display, unsigned int& total)
+	void drawSelfAndChild(const Frustum& frustum, GLuint shader, Model_Uniforms* uniforms, unsigned int& display, unsigned int& total)
 	{
 		if (boundingVolume->isOnFrustum(frustum, transform))
 		{
-			ourShader.setMat4("model", transform.getModelMatrix());
-			pModel->Draw(ourShader);
+			uniforms->model = transform.getModelMatrix();
+			pModel->Draw(shader, uniforms);
 			display++;
 		}
 		total++;
 
 		for (auto&& child : children)
 		{
-			child->drawSelfAndChild(frustum, ourShader, display, total);
+			child->drawSelfAndChild(frustum, shader, uniforms, display, total);
 		}
 	}
 };

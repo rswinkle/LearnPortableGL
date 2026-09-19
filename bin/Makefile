@@ -90,6 +90,18 @@ ifeq ($(config),debug)
   7.1.debugging_config = debug
   7.2.text_rendering_config = debug
   7.3.2d_game_config = debug
+  8.guest.2020.oit_config = debug
+  8.guest.2020.skeletal_animation_config = debug
+  8.guest.2021.scene_graph_config = debug
+  8.guest.2021.frustum_culling_config = debug
+  8.guest.2021.csm_config = debug
+  8.guest.2021.terrain_gpu_dist_config = debug
+  8.guest.2021.terrain_cpu_src_config = debug
+  8.guest.2021.dsa_config = debug
+  8.guest.2022.computeshader_helloworld_config = debug
+  8.guest.2022.physically_based_bloom_config = debug
+  8.guest.2022.area_light_config = debug
+  8.guest.2022.multiple_area_lights_config = debug
 
 else ifeq ($(config),release)
   1.1.1.hello_window_config = release
@@ -173,12 +185,24 @@ else ifeq ($(config),release)
   7.1.debugging_config = release
   7.2.text_rendering_config = release
   7.3.2d_game_config = release
+  8.guest.2020.oit_config = release
+  8.guest.2020.skeletal_animation_config = release
+  8.guest.2021.scene_graph_config = release
+  8.guest.2021.frustum_culling_config = release
+  8.guest.2021.csm_config = release
+  8.guest.2021.terrain_gpu_dist_config = release
+  8.guest.2021.terrain_cpu_src_config = release
+  8.guest.2021.dsa_config = release
+  8.guest.2022.computeshader_helloworld_config = release
+  8.guest.2022.physically_based_bloom_config = release
+  8.guest.2022.area_light_config = release
+  8.guest.2022.multiple_area_lights_config = release
 
 else
   $(error "invalid configuration $(config)")
 endif
 
-PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.colors 2.2.1.basic_lighting_diffuse 2.2.2.basic_lighting_specular 2.2.3.basic_lighting_exercise1 2.2.4.basic_lighting_exercise2 2.2.5.basic_lighting_exercise3 2.3.1.materials 2.3.2.materials_exercise1 2.4.1.lighting_maps_diffuse 2.4.2.lighting_maps_specular 2.4.3.lighting_maps_exercise2 2.4.4.lighting_maps_exercise4 2.5.1.light_casters_directional 2.5.2.light_casters_point 2.5.3.light_casters_spot 2.5.4.light_casters_spot_soft 2.6.multiple_lights 3.1.model_loading 4.1.1.depth_testing 4.1.2.depth_testing_view 4.2.stencil_testing 4.3.1.blending_discard 4.3.2.blending_sorted 4.5.1.framebuffers 4.5.2.framebuffers_exercise1 4.6.1.cubemaps_skybox 4.6.2.cubemaps_environment_mapping 4.10.1.instancing_quads 4.10.2.asteroids 4.10.3.asteroids_instanced 4.11.1.anti_aliasing_msaa 5.1.advanced_lighting 5.2.gamma_correction 5.3.1.1.shadow_mapping_depth 5.3.1.2.shadow_mapping_base 5.3.1.3.shadow_mapping 5.3.2.1.point_shadows 5.3.2.2.point_shadows_soft 5.4.normal_mapping 5.5.1.parallax_mapping 5.5.2.steep_parallax_mapping 5.5.3.parallax_occlusion_mapping 5.6.hdr 5.7.bloom 5.8.1.deferred_shading 5.8.2.deferred_shading_volumes 5.9.ssao 6.1.1.lighting 6.1.2.lighting_textured 6.2.1.1.ibl_irradiance_conversion 6.2.1.2.ibl_irradiance 6.2.2.1.ibl_specular 6.2.2.2.ibl_specular_textured 7.1.debugging 7.2.text_rendering 7.3.2d_game
+PROJECTS := 1.1.1.hello_window 1.1.2.hello_window_clear 1.2.1.hello_triangle 1.2.2.hello_triangle_indexed 1.2.3.hello_triangle_exercise1 1.2.4.hello_triangle_exercise2 1.2.5.hello_triangle_exercise3 1.3.1.shaders_uniform 1.3.2.shaders_interpolation 1.4.1.textures 1.4.2.textures_combined 1.4.3.textures_exercise1 1.4.4.textures_exercise2 1.4.5.textures_exercise3 1.4.6.textures_exercise4 1.5.1.transformations 1.5.2.transformations_exercise1 1.5.3.transformations_exercise2 1.6.1.coordinate_systems 1.6.2.coordinate_systems_depth 1.6.3.coordinate_systems_multiple 1.7.1.camera_circle 1.7.2.camera_keyboard_dt 1.7.3.camera_mouse_zoom.cpp 1.7.4.camera_class 2.1.colors 2.2.1.basic_lighting_diffuse 2.2.2.basic_lighting_specular 2.2.3.basic_lighting_exercise1 2.2.4.basic_lighting_exercise2 2.2.5.basic_lighting_exercise3 2.3.1.materials 2.3.2.materials_exercise1 2.4.1.lighting_maps_diffuse 2.4.2.lighting_maps_specular 2.4.3.lighting_maps_exercise2 2.4.4.lighting_maps_exercise4 2.5.1.light_casters_directional 2.5.2.light_casters_point 2.5.3.light_casters_spot 2.5.4.light_casters_spot_soft 2.6.multiple_lights 3.1.model_loading 4.1.1.depth_testing 4.1.2.depth_testing_view 4.2.stencil_testing 4.3.1.blending_discard 4.3.2.blending_sorted 4.5.1.framebuffers 4.5.2.framebuffers_exercise1 4.6.1.cubemaps_skybox 4.6.2.cubemaps_environment_mapping 4.10.1.instancing_quads 4.10.2.asteroids 4.10.3.asteroids_instanced 4.11.1.anti_aliasing_msaa 5.1.advanced_lighting 5.2.gamma_correction 5.3.1.1.shadow_mapping_depth 5.3.1.2.shadow_mapping_base 5.3.1.3.shadow_mapping 5.3.2.1.point_shadows 5.3.2.2.point_shadows_soft 5.4.normal_mapping 5.5.1.parallax_mapping 5.5.2.steep_parallax_mapping 5.5.3.parallax_occlusion_mapping 5.6.hdr 5.7.bloom 5.8.1.deferred_shading 5.8.2.deferred_shading_volumes 5.9.ssao 6.1.1.lighting 6.1.2.lighting_textured 6.2.1.1.ibl_irradiance_conversion 6.2.1.2.ibl_irradiance 6.2.2.1.ibl_specular 6.2.2.2.ibl_specular_textured 7.1.debugging 7.2.text_rendering 7.3.2d_game 8.guest.2020.oit 8.guest.2020.skeletal_animation 8.guest.2021.scene_graph 8.guest.2021.frustum_culling 8.guest.2021.csm 8.guest.2021.terrain_gpu_dist 8.guest.2021.terrain_cpu_src 8.guest.2021.dsa 8.guest.2022.computeshader_helloworld 8.guest.2022.physically_based_bloom 8.guest.2022.area_light 8.guest.2022.multiple_area_lights
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -670,6 +694,78 @@ ifneq (,$(7.3.2d_game_config))
 	@${MAKE} --no-print-directory -C . -f 7.3.2d_game.make config=$(7.3.2d_game_config)
 endif
 
+8.guest.2020.oit:
+ifneq (,$(8.guest.2020.oit_config))
+	@echo "==== Building 8.guest.2020.oit ($(8.guest.2020.oit_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2020.oit.make config=$(8.guest.2020.oit_config)
+endif
+
+8.guest.2020.skeletal_animation:
+ifneq (,$(8.guest.2020.skeletal_animation_config))
+	@echo "==== Building 8.guest.2020.skeletal_animation ($(8.guest.2020.skeletal_animation_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2020.skeletal_animation.make config=$(8.guest.2020.skeletal_animation_config)
+endif
+
+8.guest.2021.scene_graph:
+ifneq (,$(8.guest.2021.scene_graph_config))
+	@echo "==== Building 8.guest.2021.scene_graph ($(8.guest.2021.scene_graph_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.scene_graph.make config=$(8.guest.2021.scene_graph_config)
+endif
+
+8.guest.2021.frustum_culling:
+ifneq (,$(8.guest.2021.frustum_culling_config))
+	@echo "==== Building 8.guest.2021.frustum_culling ($(8.guest.2021.frustum_culling_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.frustum_culling.make config=$(8.guest.2021.frustum_culling_config)
+endif
+
+8.guest.2021.csm:
+ifneq (,$(8.guest.2021.csm_config))
+	@echo "==== Building 8.guest.2021.csm ($(8.guest.2021.csm_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.csm.make config=$(8.guest.2021.csm_config)
+endif
+
+8.guest.2021.terrain_gpu_dist:
+ifneq (,$(8.guest.2021.terrain_gpu_dist_config))
+	@echo "==== Building 8.guest.2021.terrain_gpu_dist ($(8.guest.2021.terrain_gpu_dist_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.terrain_gpu_dist.make config=$(8.guest.2021.terrain_gpu_dist_config)
+endif
+
+8.guest.2021.terrain_cpu_src:
+ifneq (,$(8.guest.2021.terrain_cpu_src_config))
+	@echo "==== Building 8.guest.2021.terrain_cpu_src ($(8.guest.2021.terrain_cpu_src_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.terrain_cpu_src.make config=$(8.guest.2021.terrain_cpu_src_config)
+endif
+
+8.guest.2021.dsa:
+ifneq (,$(8.guest.2021.dsa_config))
+	@echo "==== Building 8.guest.2021.dsa ($(8.guest.2021.dsa_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.dsa.make config=$(8.guest.2021.dsa_config)
+endif
+
+8.guest.2022.computeshader_helloworld:
+ifneq (,$(8.guest.2022.computeshader_helloworld_config))
+	@echo "==== Building 8.guest.2022.computeshader_helloworld ($(8.guest.2022.computeshader_helloworld_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.computeshader_helloworld.make config=$(8.guest.2022.computeshader_helloworld_config)
+endif
+
+8.guest.2022.physically_based_bloom:
+ifneq (,$(8.guest.2022.physically_based_bloom_config))
+	@echo "==== Building 8.guest.2022.physically_based_bloom ($(8.guest.2022.physically_based_bloom_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.physically_based_bloom.make config=$(8.guest.2022.physically_based_bloom_config)
+endif
+
+8.guest.2022.area_light:
+ifneq (,$(8.guest.2022.area_light_config))
+	@echo "==== Building 8.guest.2022.area_light ($(8.guest.2022.area_light_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.area_light.make config=$(8.guest.2022.area_light_config)
+endif
+
+8.guest.2022.multiple_area_lights:
+ifneq (,$(8.guest.2022.multiple_area_lights_config))
+	@echo "==== Building 8.guest.2022.multiple_area_lights ($(8.guest.2022.multiple_area_lights_config)) ===="
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.multiple_area_lights.make config=$(8.guest.2022.multiple_area_lights_config)
+endif
+
 clean:
 	@${MAKE} --no-print-directory -C . -f 1.1.1.hello_window.make clean
 	@${MAKE} --no-print-directory -C . -f 1.1.2.hello_window_clear.make clean
@@ -752,6 +848,18 @@ clean:
 	@${MAKE} --no-print-directory -C . -f 7.1.debugging.make clean
 	@${MAKE} --no-print-directory -C . -f 7.2.text_rendering.make clean
 	@${MAKE} --no-print-directory -C . -f 7.3.2d_game.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2020.oit.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2020.skeletal_animation.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.scene_graph.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.frustum_culling.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.csm.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.terrain_gpu_dist.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.terrain_cpu_src.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2021.dsa.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.computeshader_helloworld.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.physically_based_bloom.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.area_light.make clean
+	@${MAKE} --no-print-directory -C . -f 8.guest.2022.multiple_area_lights.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -844,5 +952,17 @@ help:
 	@echo "   7.1.debugging"
 	@echo "   7.2.text_rendering"
 	@echo "   7.3.2d_game"
+	@echo "   8.guest.2020.oit"
+	@echo "   8.guest.2020.skeletal_animation"
+	@echo "   8.guest.2021.scene_graph"
+	@echo "   8.guest.2021.frustum_culling"
+	@echo "   8.guest.2021.csm"
+	@echo "   8.guest.2021.terrain_gpu_dist"
+	@echo "   8.guest.2021.terrain_cpu_src"
+	@echo "   8.guest.2021.dsa"
+	@echo "   8.guest.2022.computeshader_helloworld"
+	@echo "   8.guest.2022.physically_based_bloom"
+	@echo "   8.guest.2022.area_light"
+	@echo "   8.guest.2022.multiple_area_lights"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"

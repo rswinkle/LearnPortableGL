@@ -22,6 +22,8 @@ unsigned int scr_height = 480;
 
 // stores how much we're seeing of either texture
 float mixValue = 0.2f;
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 #define PIX_FORMAT SDL_PIXELFORMAT_ABGR8888
 
@@ -175,6 +177,9 @@ int main()
 	while (true)
 	{
 		fps_log_tick();
+		int currentFrame = SDL_GetTicks();
+		deltaTime = (currentFrame - lastFrame) / 1000.0f;
+		lastFrame = currentFrame;
 
 		// input
 		// -----
@@ -225,18 +230,8 @@ bool handle_events()
 			return true;
 		case SDL_KEYDOWN:
 			sc = event.key.keysym.scancode;
-			
-			if (sc == SDL_SCANCODE_ESCAPE) {
+			if (sc == SDL_SCANCODE_ESCAPE)
 				return true;
-			} else if (sc == SDL_SCANCODE_UP) {
-				mixValue += 0.005f; // change for preferences/hardware
-				if (mixValue >= 1.0f)
-					mixValue = 1.0f;
-			} else if (sc == SDL_SCANCODE_DOWN) {
-				mixValue -= 0.005f; // change for preferences/hardware
-				if (mixValue <= 0.0f)
-					mixValue = 0.0f;
-			}
 			break;
 
 		case SDL_WINDOWEVENT:
@@ -255,6 +250,20 @@ bool handle_events()
 			}
 			break;
 		}
+	}
+
+	const Uint8 *state = SDL_GetKeyboardState(NULL);
+	float dt = deltaTime;
+	// original 0.001/frame at ~60 Hz
+	if (state[SDL_SCANCODE_UP]) {
+		mixValue += 0.06f * dt;
+		if (mixValue >= 1.0f)
+			mixValue = 1.0f;
+	}
+	if (state[SDL_SCANCODE_DOWN]) {
+		mixValue -= 0.06f * dt;
+		if (mixValue <= 0.0f)
+			mixValue = 0.0f;
 	}
 
 	return false;

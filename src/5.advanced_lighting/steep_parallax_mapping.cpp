@@ -278,16 +278,18 @@ bool handle_events()
 	if (state[SDL_SCANCODE_A]) camera.ProcessKeyboard(LEFT, deltaTime);
 	if (state[SDL_SCANCODE_D]) camera.ProcessKeyboard(RIGHT, deltaTime);
 
+	float dt = deltaTime;
+	// original 0.0005/frame at ~60 Hz
 	if (state[SDL_SCANCODE_Q]) {
 		if (heightScale > 0.0f) {
-			heightScale -= 0.0005f;
+			heightScale -= 0.03f * dt;
 			if (heightScale < 0.0f)
 				heightScale = 0.0f;
 			std::cout << "heightScale: " << heightScale << std::endl;
 		}
 	} else if (state[SDL_SCANCODE_E]) {
 		if (heightScale < 1.0f) {
-			heightScale += 0.0005f;
+			heightScale += 0.03f * dt;
 			if (heightScale > 1.0f)
 				heightScale = 1.0f;
 			std::cout << "heightScale: " << heightScale << std::endl;
