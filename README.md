@@ -21,6 +21,40 @@ Other than that I'll try to generally keep the organization of the repo the same
 as [his official one](https://github.com/JoeyDeVries/LearnOpenGL) except with
 a flattened bin directory (no chapter subdirectories) for convenience.
 
+System packages
+---------------
+
+Every program needs SDL2. Model loading and skeletal animation also need Assimp,
+text rendering and Breakout need FreeType, and Breakout needs SDL2_mixer. glm
+and stb_image ship in `inc/`. You also need a C++ compiler, `make`, and
+**Premake 5** (`premake5` on your PATH). Debian/Ubuntu's `premake`/`premake4`
+packages are still Premake 4 and will not work; grab a 5.x binary from
+https://premake.github.io/download (Arch and recent Fedora ship Premake 5 as
+`premake`).
+
+Debian / Ubuntu:
+
+```
+sudo apt install build-essential libsdl2-dev libsdl2-mixer-dev \
+    libassimp-dev libfreetype-dev
+```
+
+Fedora:
+
+```
+sudo dnf install gcc-c++ make premake SDL2-devel SDL2_mixer-devel \
+    assimp-devel freetype-devel
+```
+
+Arch:
+
+```
+sudo pacman -S --needed base-devel premake sdl2 sdl2_mixer assimp freetype2
+```
+
+Then from the repo root: `premake5 gmake` and `make -C bin` (or a single
+target such as `make -C bin 1.3.3.shaders_class`).
+
 Programs print an averaged FPS line every 3 seconds (`53.86 FPS`). Define
 `FPS_EVERY_N_SECS` before including `fps_log.h` to change the interval. They
 use SDL's software renderer with no vsync; the log is there so you can see

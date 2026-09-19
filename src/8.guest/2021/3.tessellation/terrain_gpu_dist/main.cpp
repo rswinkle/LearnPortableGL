@@ -55,19 +55,24 @@ int main()
 	stbi_set_flip_vertically_on_load(true);
 	int width, height, nrChannels;
 	unsigned char *data = stbi_load(FileSystem::getPath("resources/textures/heightmaps/iceland_heightmap.png").c_str(), &width, &height, &nrChannels, 0);
-	if (data)
-		std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
-	else
+	if (!data) {
 		std::cout << "Failed to load texture" << std::endl;
+		return 1;
+	}
+	std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
 
+	// No tessellation; same subsampled CPU strip as the CPU demo.
+	// Lower rez = denser mesh. rez=1 speckles in PGL fill (see
+	// scratch/high_triangulation_speckles.md). 8/16 stays clean at the
+	// start camera; drop toward 4/2 for more detail at the cost of glitter.
 #ifndef NDEBUG
-	int rez = 12;
+	int rez = 16;
 #else
-	int rez = 6;
+	int rez = 8;
 #endif
 	std::vector<float> vertices;
 	float yScale = 64.0f / 256.0f, yShift = 16.0f;
-	int bytePerPixel = nrChannels;
+	unsigned bytePerPixel = nrChannels;
 	int gw = 0, gh = 0;
 	for (int i = 0; i < height; i += rez) {
 		gw = 0;
