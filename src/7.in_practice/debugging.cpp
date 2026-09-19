@@ -119,10 +119,15 @@ int main()
 {
 	setup_context();
 
-	// PGL is a debug context with GL_DEBUG_OUTPUT on by default.
-	// No GL_CONTEXT_FLAGS / GL_CONTEXT_FLAG_DEBUG_BIT / glDebugMessageControl.
-	glEnable(GL_DEBUG_OUTPUT);
-	glDebugMessageCallback(glDebugOutput, NULL);
+	// enable OpenGL debug context if context allows for debug context
+	int flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+	if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
+	{
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // makes sure errors are displayed synchronously
+		glDebugMessageCallback(glDebugOutput, NULL);
+		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+	}
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
