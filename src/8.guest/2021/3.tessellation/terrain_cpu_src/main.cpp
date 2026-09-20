@@ -61,14 +61,10 @@ int main()
 	}
 	std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
 
-	// Lower rez = denser mesh. rez=1 matches the original (~1 tri/pixel from
-	// the start camera) but PGL fill speckles; see
-	// scratch/high_triangulation_speckles.md. 8/16 is the coarsest that stays
-	// clean at that view. Drop toward 4/2 for more detail at the cost of glitter.
 #ifndef NDEBUG
-	int rez = 16;
+	int rez = 4;
 #else
-	int rez = 8;
+	int rez = 1;
 #endif
 	std::vector<float> vertices;
 	float yScale = 64.0f / 256.0f, yShift = 16.0f;
@@ -188,10 +184,11 @@ bool handle_events()
 		}
 	}
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
-	if (state[SDL_SCANCODE_W]) camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (state[SDL_SCANCODE_S]) camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (state[SDL_SCANCODE_A]) camera.ProcessKeyboard(LEFT, deltaTime);
-	if (state[SDL_SCANCODE_D]) camera.ProcessKeyboard(RIGHT, deltaTime);
+	float moveDt = deltaTime * (state[SDL_SCANCODE_LSHIFT] ? 3.0f : 1.0f);
+	if (state[SDL_SCANCODE_W]) camera.ProcessKeyboard(FORWARD, moveDt);
+	if (state[SDL_SCANCODE_S]) camera.ProcessKeyboard(BACKWARD, moveDt);
+	if (state[SDL_SCANCODE_A]) camera.ProcessKeyboard(LEFT, moveDt);
+	if (state[SDL_SCANCODE_D]) camera.ProcessKeyboard(RIGHT, moveDt);
 	return false;
 }
 

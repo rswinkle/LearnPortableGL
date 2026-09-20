@@ -3,7 +3,9 @@
 #include <vector>
 #include <map>
 #include <glm/glm.hpp>
+#include <assimp/Importer.hpp>
 #include <assimp/scene.h>
+#include <assimp/postprocess.h>
 #include <learnopengl/bone.h>
 #include <functional>
 #include <learnopengl/animdata.h>
@@ -29,7 +31,8 @@ public:
 		assert(scene && scene->mRootNode);
 		auto animation = scene->mAnimations[0];
 		m_Duration = animation->mDuration;
-		m_TicksPerSecond = animation->mTicksPerSecond;
+		// Assimp 5+/6 glTF often reports 0 ticks/sec; 25 is Assimp's historical default.
+		m_TicksPerSecond = animation->mTicksPerSecond != 0.0 ? animation->mTicksPerSecond : 25.0;
 		aiMatrix4x4 globalTransformation = scene->mRootNode->mTransformation;
 		globalTransformation = globalTransformation.Inverse();
 		ReadHeirarchyData(m_RootNode, scene->mRootNode);

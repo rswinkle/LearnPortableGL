@@ -49,7 +49,11 @@ QUICK NOTES:
     GL_RGBA32F (still 4x float32). GL_SRGB / GL_SRGB8 / GL_SRGB_ALPHA /
     GL_SRGB8_ALPHA8 as internalformat keep encoded U8 in memory and convert RGB
     to linear on sample (alpha unchanged). Filtering and glGenerateMipmap run
-    in linear. That flag applies only with type GL_UNSIGNED_BYTE. GL_FLOAT +
+    in linear. That flag applies only with type GL_UNSIGNED_BYTE.
+    pglSetTexSRGB(target, srgb) / pglSetTextureSRGB(name, srgb) toggle the same
+    decode on an existing U8 color texture without rewriting pixels.
+    INVALID_OPERATION on texture 0, depth, or float. glGenerateMipmap uses
+    the flag at the time of the call (filter in linear, re-encode). GL_FLOAT +
     GL_SRGB* does not convert to 8-bit sRGB (desktop GL would); format GL_RGBA
     stores linear RGBA32F, format GL_RGB is GL_INVALID_ENUM (no RGB32F). Both
     glTexImage* (PGL-owned copy) and pglTexImage* /
@@ -196,12 +200,21 @@ QUICK NOTES:
     PGL_TINY_MEM: RGB565, D16, NO_STENCIL, 4 vertex attribs, 80 KB scratch space
     PGL_SMALL_MEM: Same as TINY but 800 KB scratch space
     PGL_MED_MEM: RGB565, 4 vertex attribs, 1.6 MB scratch space
-    default: ABGR32, D24S8, 8 vertex attribs, 16 MB scratch space
+    default: ABGR32, D24S8, 8 vertex attribs, 64 MB scratch space
 
     Obviously most of the time the default is fine, and if none of the
     presets match what you want you can mix and match and adjust any of
     the finer grained options individually, but don't define a preset *and*
-    define individual settings as that will cause problems.
+    define individual framebuffer/depth settings as that will cause problems.
+    PGL_MAX_VERTICES and GL_MAX_VERTEX_ATTRIBS are an exception: define both
+    (or neither) before including PGL to override the preset/default vertex shader
+    output scratch size without touching pixel format. GL_MAX_VERTEX_ATTRIBS must
+    be >= 4.
+
+    Fill coverage snaps window XY to 1/256 pixel and uses integer edge
+    functions so a sample on a shared edge belongs to exactly one triangle.
+    A sample exactly on an edge is drawn if the opposite vertex is on the
+    same side as (-1, -2.5) (not D3D top-left). Lines and points are unchanged.
 
 
 DOCUMENTATION
@@ -462,7 +475,9 @@ RENDER TARGETS / FBOs
 That's basically it.  There are some other non-standard features like
 pglSetInterp that lets you change the interpolation of a shader
 whenever you want.  In real OpenGL you'd have to have 2 (or more) separate
-but almost identical shaders to do that.
+but almost identical shaders to do that.  pglSetTexSRGB / pglSetTextureSRGB are
+the same idea for sRGB sampling: flip decode on a U8 color texture without
+re-uploading (call glGenerateMipmap again if the chain should match).
 
 
 ADDITIONAL CONFIGURATION
@@ -694,6 +709,7 @@ extern "C" {
 /* ok */
 #else
 #error "Must define all or none of PGL_MALLOC, PGL_FREE, and PGL_REALLOC."
+#include "force_fatal_error_with_nonexistent_include.h"
 #endif
 
 #ifndef PGL_MALLOC
@@ -3226,7 +3242,20 @@ enum
 #define PGL_STENCIL_MASK 0xFF
 
 
-// Feel free to change these
+// Define both PGL_MAX_VERTICES and GL_MAX_VERTEX_ATTRIBS, or neither (not one).
+#if defined(PGL_MAX_VERTICES) && defined(GL_MAX_VERTEX_ATTRIBS)
+#if GL_MAX_VERTEX_ATTRIBS < 4
+#error "GL_MAX_VERTEX_ATTRIBS must be >= 4"
+#include "force_fatal_error_with_nonexistent_include.h"
+#endif
+#elif !defined(PGL_MAX_VERTICES) && !defined(GL_MAX_VERTEX_ATTRIBS)
+/* ok */
+#else
+#error "Define both PGL_MAX_VERTICES and GL_MAX_VERTEX_ATTRIBS, or neither"
+#include "force_fatal_error_with_nonexistent_include.h"
+#endif
+
+#ifndef PGL_MAX_VERTICES
 #ifdef PGL_TINY_MEM
 // 80 KB
 #define GL_MAX_VERTEX_ATTRIBS 4
@@ -3240,9 +3269,10 @@ enum
 #define GL_MAX_VERTEX_ATTRIBS 4
 #define PGL_MAX_VERTICES 100000
 #else
-// 16 MB
+// 64 MB
 #define GL_MAX_VERTEX_ATTRIBS 8
 #define PGL_MAX_VERTICES 500000
+#endif
 #endif
 
 
@@ -4438,6 +4468,12 @@ PGLDEF void pglClearScreen(void);
 //This isn't possible in regular OpenGL, changing the interpolation of vs output of
 //an existing shader.  You'd have to switch between 2 almost identical shaders.
 PGLDEF void pglSetInterp(GLsizei n, GLenum* interpolation);
+
+// Sample-time sRGB decode on a U8 color texture (does not rewrite pixels).
+// INVALID_OPERATION on texture 0, depth, or float. GenerateMipmap uses the
+// flag at the time of the call.
+PGLDEF void pglSetTexSRGB(GLenum target, GLboolean srgb);
+PGLDEF void pglSetTextureSRGB(GLuint texture, GLboolean srgb);
 
 #define pglVertexAttribPointer(index, size, type, normalized, stride, offset) \
 glVertexAttribPointer(index, size, type, normalized, stride, (void*)(offset))
@@ -8825,6 +8861,29 @@ static void pgl_setup_tri_mip_grad(glVertex* v0, glVertex* v1, glVertex* v2,
 	}
 }
 
+// 8-bit subpixel grid (1/256 px), same as common GPU rasterizers.
+#define PGL_SUBPIXEL_BITS 8
+#define PGL_SUBPIXEL_SCALE (1 << PGL_SUBPIXEL_BITS)
+
+static inline int pgl_snap_xy(float v)
+{
+	return (int)floorf(v * (float)PGL_SUBPIXEL_SCALE + 0.5f);
+}
+
+// Same implicit line as make_Line(ax,ay, bx,by) evaluated at (px,py).
+static inline i64 pgl_edge_eq(int ax, int ay, int bx, int by, int px, int py)
+{
+	return (i64)(ay - by) * px
+	     + (i64)(bx - ax) * py
+	     + (i64)ax * by
+	     - (i64)bx * ay;
+}
+
+static inline int pgl_same_sign(i64 a, i64 b)
+{
+	return (a > 0 && b > 0) || (a < 0 && b < 0);
+}
+
 static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigned int provoke)
 {
 	vec4 p0 = v0->screen_space;
@@ -8855,6 +8914,34 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 	print_v3(hp2, "\n\n");
 	*/
 
+	int vx0 = pgl_snap_xy(hp0.x);
+	int vy0 = pgl_snap_xy(hp0.y);
+	int vx1 = pgl_snap_xy(hp1.x);
+	int vy1 = pgl_snap_xy(hp1.y);
+	int vx2 = pgl_snap_xy(hp2.x);
+	int vy2 = pgl_snap_xy(hp2.y);
+
+	i64 e01_v2 = pgl_edge_eq(vx0, vy0, vx1, vy1, vx2, vy2);
+	i64 e20_v1 = pgl_edge_eq(vx2, vy2, vx0, vy0, vx1, vy1);
+	i64 e12_v0 = pgl_edge_eq(vx1, vy1, vx2, vy2, vx0, vy0);
+	if (!e01_v2 || !e20_v1 || !e12_v0)
+		return;
+
+	int svx = pgl_snap_xy(-1.0f);
+	int svy = pgl_snap_xy(-2.5f);
+	i64 e01_s = pgl_edge_eq(vx0, vy0, vx1, vy1, svx, svy);
+	i64 e20_s = pgl_edge_eq(vx2, vy2, vx0, vy0, svx, svy);
+	i64 e12_s = pgl_edge_eq(vx1, vy1, vx2, vy2, svx, svy);
+
+	// Bbox from snapped XY so coverage and the loop agree.
+	float inv_scale = 1.0f / (float)PGL_SUBPIXEL_SCALE;
+	hp0.x = vx0 * inv_scale;
+	hp0.y = vy0 * inv_scale;
+	hp1.x = vx1 * inv_scale;
+	hp1.y = vy1 * inv_scale;
+	hp2.x = vx2 * inv_scale;
+	hp2.y = vy2 * inv_scale;
+
 	//can't think of a better/cleaner way to do this than these 8 lines
 	float x_min = MIN(hp0.x, hp1.x);
 	float x_max = MAX(hp0.x, hp1.x);
@@ -8875,13 +8962,9 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 
 	// TODO is there any point to having an int index?
 	// I think I did it for OpenMP
-	int ix_max = roundf(x_max);
-	int iy_max = roundf(y_max);
-
-	//form implicit lines
-	Line l01 = make_Line(hp0.x, hp0.y, hp1.x, hp1.y);
-	Line l12 = make_Line(hp1.x, hp1.y, hp2.x, hp2.y);
-	Line l20 = make_Line(hp2.x, hp2.y, hp0.x, hp0.y);
+	// Clipped bbox is >= 0; +0.5 then trunc is round-half-up (= roundf) without libm.
+	int ix_max = x_max + 0.5f;
+	int iy_max = y_max + 0.5f;
 
 	float alpha, beta, gamma, tmp, tmp2, z;
 	float fs_input[GL_MAX_VERTEX_OUTPUT_COMPONENTS];
@@ -8897,31 +8980,33 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 	float inv_w1 = 1/p1.w;
 	float inv_w2 = 1/p2.w;
 
-	float x, y;
-
 	int fragdepth_or_discard = c->programs.a[c->cur_program].fragdepth_or_discard;
 	Shader_Builtins builtins;
 
 	for (int iy = y_min; iy<iy_max; ++iy) {
-		y = iy + 0.5f;
+		int py = (iy << PGL_SUBPIXEL_BITS) + (PGL_SUBPIXEL_SCALE / 2);
 
 		for (int ix = x_min; ix<ix_max; ++ix) {
-			x = ix + 0.5f; //center of min pixel
+			int px = (ix << PGL_SUBPIXEL_BITS) + (PGL_SUBPIXEL_SCALE / 2);
 
-			// page 117 of glspec describes calculating using areas of triangles but that
-			// simplifies (b*h_1/2)/(b*h_2/2) = h_1/h_2 hence the implicit line equations
-			// See FoCG pg 34-5 and 167
-			gamma = line_func(&l01, x, y)/line_func(&l01, hp2.x, hp2.y);
-			beta = line_func(&l20, x, y)/line_func(&l20, hp1.x, hp1.y);
-			alpha = 1 - beta - gamma;
+			// Integer edges of snapped verts: a sample is in A, in B, or on the line.
+			// page 117 of glspec / FoCG pg 34-5 and 167
+			i64 e01 = pgl_edge_eq(vx0, vy0, vx1, vy1, px, py);
+			i64 e20 = pgl_edge_eq(vx2, vy2, vx0, vy0, px, py);
+			i64 e12 = pgl_edge_eq(vx1, vy1, vx2, vy2, px, py);
 
-			if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-				//if it's on the edge (==0), draw if the opposite vertex is on the same side as arbitrary point -1, -2.5
-				//this is a deterministic way of choosing which triangle gets a pixel for triangles that share
-				//edges (see commit message for e87e324)
-				if ((alpha > 0 || line_func(&l12, hp0.x, hp0.y) * line_func(&l12, -1, -2.5) > 0) &&
-				    (beta  > 0 || line_func(&l20, hp1.x, hp1.y) * line_func(&l20, -1, -2.5) > 0) &&
-				    (gamma > 0 || line_func(&l01, hp2.x, hp2.y) * line_func(&l01, -1, -2.5) > 0)) {
+			if ((e01 == 0 || pgl_same_sign(e01, e01_v2)) &&
+			    (e20 == 0 || pgl_same_sign(e20, e20_v1)) &&
+			    (e12 == 0 || pgl_same_sign(e12, e12_v0))) {
+				// On the edge, draw if the opposite vertex is on the same side as
+				// (-1, -2.5). Deterministic owner for shared edges (e87e324).
+				if ((e12 != 0 || pgl_same_sign(e12_v0, e12_s)) &&
+				    (e20 != 0 || pgl_same_sign(e20_v1, e20_s)) &&
+				    (e01 != 0 || pgl_same_sign(e01_v2, e01_s))) {
+					gamma = (float)((double)e01 / (double)e01_v2);
+					beta  = (float)((double)e20 / (double)e20_v1);
+					alpha = (float)((double)e12 / (double)e12_v0);
+
 					//calculate interpolation here
 					tmp2 = alpha*inv_w0 + beta*inv_w1 + gamma*inv_w2;
 
@@ -8931,7 +9016,7 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 					z = rsw_mapf(z, -1.0f, 1.0f, c->depth_range_near, c->depth_range_far); //TODO move out (ie can I map hp1.z etc.)?
 
 					// early testing if shader doesn't use fragdepth or discard
-					if (!fragdepth_or_discard && !fragment_processing(x, y, z)) {
+					if (!fragdepth_or_discard && !fragment_processing(ix, iy, z)) {
 						continue;
 					}
 
@@ -8949,7 +9034,8 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 					}
 
 					// tmp2 is 1/w interpolated... I now do that everywhere (draw_line, draw_point)
-					SET_V4(builtins.gl_FragCoord, x, y, z, tmp2);
+					// gl_FragCoord.xy is the pixel center (GL default; not pixel_center_integer)
+					SET_V4(builtins.gl_FragCoord, ix + 0.5f, iy + 0.5f, z, tmp2);
 					builtins.discard = GL_FALSE;
 					builtins.gl_FragDepth = z;
 
@@ -8960,7 +9046,7 @@ static void draw_triangle_fill(glVertex* v0, glVertex* v1, glVertex* v2, unsigne
 					c->programs.a[c->cur_program].fragment_shader(fs_input, &builtins, c->programs.a[c->cur_program].uniform);
 					if (!builtins.discard) {
 
-						draw_fragment(&builtins, x, y, fragdepth_or_discard);
+						draw_fragment(&builtins, ix, iy, fragdepth_or_discard);
 					}
 				}
 			}
@@ -12346,6 +12432,8 @@ PGLDEF void glClear(GLbitfield mask)
 
 	// NOTE: All buffers should have the same dimensions/size
 	int sz = c->ux * c->uy;
+	PGL_UNUSED(sz); // possibly unused depending on configuration
+
 	int w = c->back_buffer.w;
 
 	pix_t color = c->clear_color;
@@ -14459,10 +14547,10 @@ static void pgl_blit_put_rgba(const pglBlitColor* s, int x, int y, float r, floa
 {
 	PGL_ASSERT(x >= 0 && y >= 0 && x < s->w && y < s->h);
 	int idx = pgl_blit_idx(s->w, s->h, x, y);
-	if (r < 0.f) r = 0.f; if (r > 1.f) r = 1.f;
-	if (g < 0.f) g = 0.f; if (g > 1.f) g = 1.f;
-	if (b < 0.f) b = 0.f; if (b > 1.f) b = 1.f;
-	if (a < 0.f) a = 0.f; if (a > 1.f) a = 1.f;
+	r = clamp_01(r);
+	g = clamp_01(g);
+	b = clamp_01(b);
+	a = clamp_01(a);
 	if (s->is_pix_t) {
 		((pix_t*)s->buf)[idx] = RGBA_TO_PIXEL(r * PGL_RMAX, g * PGL_GMAX, b * PGL_BMAX, a * PGL_AMAX);
 	} else if (s->datatype == GL_FLOAT) {
@@ -14498,8 +14586,7 @@ static float pgl_blit_get_depth(const pglBlitDepth* s, int x, int y)
 static void pgl_blit_put_depth(const pglBlitDepth* s, int x, int y, float d, GLboolean write_stencil, u8 stencil)
 {
 	PGL_ASSERT(x >= 0 && y >= 0 && x < s->w && y < s->h);
-	if (d < 0.f) d = 0.f;
-	if (d > 1.f) d = 1.f;
+	d = clamp_01(d);
 	int idx = pgl_blit_idx(s->w, s->h, x, y);
 	if (s->is_float) {
 		((float*)s->buf)[idx] = d;
@@ -16219,6 +16306,33 @@ PGLDEF void pglSetInterp(GLsizei n, GLenum* interpolation)
 	//they've created a bunch of programs.  Unlikely they'd be changing a shader
 	//before creating all their shaders but whatever.
 	c->vs_output.interpolation = c->programs.a[c->cur_program].interpolation;
+}
+
+static void pgl_texture_srgb(GLuint texture, GLboolean srgb, const char* api)
+{
+	PGL_UNUSED(api);
+	PGL_ERR_NAMED((!texture || texture >= c->textures.size || c->textures.a[texture].deleted),
+	              GL_INVALID_OPERATION, api);
+	glTexture* tex = &c->textures.a[texture];
+	PGL_ERR_NAMED(tex->is_depth || tex->datatype == GL_FLOAT, GL_INVALID_OPERATION, api);
+	tex->is_srgb = srgb;
+}
+
+PGLDEF void pglSetTextureSRGB(GLuint texture, GLboolean srgb)
+{
+	pgl_texture_srgb(texture, srgb, __func__);
+}
+
+PGLDEF void pglSetTexSRGB(GLenum target, GLboolean srgb)
+{
+	PGL_ERR((target != GL_TEXTURE_1D &&
+	         target != GL_TEXTURE_2D &&
+	         target != GL_TEXTURE_3D &&
+	         target != GL_TEXTURE_2D_ARRAY &&
+	         target != GL_TEXTURE_RECTANGLE &&
+	         target != GL_TEXTURE_CUBE_MAP), GL_INVALID_ENUM);
+	GLuint cur_tex = c->bound_textures[target - GL_TEXTURE_UNBOUND - 1];
+	pgl_texture_srgb(cur_tex, srgb, __func__);
 }
 
 
