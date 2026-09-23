@@ -23,8 +23,8 @@ struct Vertex {
 	glm::vec3 Tangent;
 	// bitangent
 	glm::vec3 Bitangent;
-	//bone indexes which will influence this vertex (floats: PGL has no integer attribs)
-	float m_BoneIDs[MAX_BONE_INFLUENCE] = { -1.0f, -1.0f, -1.0f, -1.0f };
+	//bone indexes which will influence this vertex
+	int m_BoneIDs[MAX_BONE_INFLUENCE] = { -1, -1, -1, -1 };
 	//weights from each bone
 	float m_Weights[MAX_BONE_INFLUENCE] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };
@@ -129,8 +129,12 @@ private:
 		// vertex texture coords
 		glEnableVertexAttribArray(2);
 		pglVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, TexCoords));
+		glEnableVertexAttribArray(3);
+		pglVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Tangent));
+		glEnableVertexAttribArray(4);
+		pglVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Bitangent));
 		glEnableVertexAttribArray(5);
-		pglVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, m_BoneIDs));
+		pglVertexAttribPointer(5, 4, GL_INT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, m_BoneIDs));
 		glEnableVertexAttribArray(6);
 		pglVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, m_Weights));
 		glBindVertexArray(0);

@@ -40,24 +40,22 @@ int main()
 		1, 2, 3
 	};
 
-	// PGL: glCreateBuffers is glGenBuffers. No glNamedBufferStorage /
-	// glCreateVertexArrays / glVertexArrayAttrib* / glVertexArrayVertexBuffer.
 	GLuint vbo = 0;
 	glCreateBuffers(1, &vbo);
-	glNamedBufferData(vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glNamedBufferStorage(vbo, sizeof(vertices), vertices, 0);
 
 	GLuint ebo = 0;
 	glCreateBuffers(1, &ebo);
-	glNamedBufferData(ebo, sizeof(indices), indices, GL_STATIC_DRAW);
+	glNamedBufferStorage(ebo, sizeof(indices), NULL, 0);
+	glNamedBufferSubData(ebo, 0, sizeof(indices), indices);
 
 	GLuint vao = 0;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBindVertexArray(0);
+	glCreateVertexArrays(1, &vao);
+	glEnableVertexArrayAttrib(vao, 0);
+	glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+	glVertexArrayAttribBinding(vao, 0, 0);
+	glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(float) * 3);
+	glVertexArrayElementBuffer(vao, ebo);
 
 	while (true)
 	{

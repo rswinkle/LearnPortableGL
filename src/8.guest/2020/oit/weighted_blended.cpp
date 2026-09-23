@@ -21,8 +21,7 @@ struct My_Uniforms
 	vec4 color;
 	GLuint accumTex;
 	GLuint revealTex;
-	GLuint opaqueTex;
-	int pass; // 0 accum, 1 reveal
+	GLuint screenTex;
 };
 
 void setup_context();
@@ -36,6 +35,8 @@ void transparent_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins*
 void transparent_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 void composite_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
 void composite_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
+void screen_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms);
+void screen_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms);
 
 vec4 toglm(pgl_vec4 v) { return vec4(v.x, v.y, v.z, v.w); }
 
@@ -61,9 +62,11 @@ int main()
 	GLuint solidShader = pglCreateProgram(solid_vs, solid_fs, 0, NULL, GL_FALSE);
 	GLuint transparentShader = pglCreateProgram(transparent_vs, transparent_fs, 0, NULL, GL_FALSE);
 	GLuint compositeShader = pglCreateProgram(composite_vs, composite_fs, 2, smooth2, GL_TRUE);
+	GLuint screenShader = pglCreateProgram(screen_vs, screen_fs, 2, smooth2, GL_FALSE);
 	glUseProgram(solidShader); pglSetUniform(&uniforms);
 	glUseProgram(transparentShader); pglSetUniform(&uniforms);
 	glUseProgram(compositeShader); pglSetUniform(&uniforms);
+	glUseProgram(screenShader); pglSetUniform(&uniforms);
 
 	float quadVertices[] = {
 		-1.0f, -1.0f, 0.0f,	0.0f, 0.0f,
@@ -116,9 +119,8 @@ int main()
 	unsigned int revealTexture;
 	glGenTextures(1, &revealTexture);
 	glBindTexture(GL_TEXTURE_2D, revealTexture);
-	// RGBA16F, not GL_R8: PGL has no packed R8, and 1-channel float is enough
-	// for the fetch; 4-channel matches accum and texelFetch2D.
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
+	// Original uses GL_R8; PGL has no packed R8, 1-channel float is the stand-in.
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, scr_width, scr_height, 0, GL_RED, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -126,6 +128,8 @@ int main()
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, accumTexture, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, revealTexture, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+	const GLenum transparentDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, transparentDrawBuffers);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		std::cout << "ERROR::FRAMEBUFFER:: Transparent framebuffer is not complete!" << std::endl;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -162,24 +166,18 @@ int main()
 
 		glDepthMask(GL_FALSE);
 		glEnable(GL_BLEND);
+		glBlendFunci(0, GL_ONE, GL_ONE);
+		glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+		glBlendEquation(GL_FUNC_ADD);
 		glBindFramebuffer(GL_FRAMEBUFFER, transparentFBO);
-
-		// No glBlendFunci / glClearBufferfv: two passes + draw-buffer clears.
-		GLenum accumOnly[] = { GL_COLOR_ATTACHMENT0 };
-		glDrawBuffers(1, accumOnly);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		GLenum revealOnly[] = { GL_COLOR_ATTACHMENT1 };
-		glDrawBuffers(1, revealOnly);
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glDrawBuffers(2, transparentDrawBuffers);
+		vec4 zeroFillerVec(0.0f);
+		vec4 oneFillerVec(1.0f);
+		glClearBufferfv(GL_COLOR, 0, &zeroFillerVec[0]);
+		glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);
 
 		glUseProgram(transparentShader);
 		glBindVertexArray(quadVAO);
-
-		glDrawBuffers(1, accumOnly);
-		glBlendFunc(GL_ONE, GL_ONE);
-		uniforms.pass = 0;
 		uniforms.mvp = vp * greenModelMat;
 		uniforms.color = vec4(0.0f, 1.0f, 0.0f, 0.5f);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -187,30 +185,24 @@ int main()
 		uniforms.color = vec4(0.0f, 0.0f, 1.0f, 0.5f);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-		glDrawBuffers(1, revealOnly);
-		glBlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-		uniforms.pass = 1;
-		uniforms.mvp = vp * greenModelMat;
-		uniforms.color = vec4(0.0f, 1.0f, 0.0f, 0.5f);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		uniforms.mvp = vp * blueModelMat;
-		uniforms.color = vec4(0.0f, 0.0f, 1.0f, 0.5f);
+		glDepthFunc(GL_ALWAYS);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
+		glUseProgram(compositeShader);
+		uniforms.accumTex = accumTexture;
+		uniforms.revealTex = revealTexture;
+		glBindVertexArray(quadVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-		// PGL float FBO attachments replace (no blend), so the original
-		// SRC_ALPHA composite into opaque RGBA16F would wipe the red quad
-		// with the blue average color. Apply the over-operator in the
-		// shader and write the default (U8) backbuffer instead.
 		glDisable(GL_DEPTH_TEST);
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glUseProgram(compositeShader);
-		uniforms.accumTex = accumTexture;
-		uniforms.revealTex = revealTexture;
-		uniforms.opaqueTex = opaqueTexture;
+		glUseProgram(screenShader);
+		uniforms.screenTex = opaqueTexture;
 		glBindVertexArray(quadVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -253,10 +245,8 @@ void transparent_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	vec4 color = u->color;
 	float z = builtins->gl_FragCoord.z;
 	float weight = clamp(pow(min(1.0f, color.a * 10.0f) + 0.01f, 3.0f) * 1e8f * pow(1.0f - z * 0.9f, 3.0f), 1e-2f, 3e3f);
-	if (u->pass == 0)
-		*(vec4*)&builtins->gl_FragColor = vec4(vec3(color) * color.a, color.a) * weight;
-	else
-		*(vec4*)&builtins->gl_FragColor = vec4(color.a, color.a, color.a, color.a);
+	*(vec4*)&builtins->gl_FragData[0] = vec4(vec3(color) * color.a, color.a) * weight;
+	*(vec4*)&builtins->gl_FragData[1] = vec4(color.a, color.a, color.a, color.a);
 }
 
 void composite_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
@@ -274,16 +264,30 @@ void composite_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
 	My_Uniforms* u = (My_Uniforms*)uniforms;
 	int x = (int)builtins->gl_FragCoord.x;
 	int y = (int)builtins->gl_FragCoord.y;
-	vec4 opaque = toglm(texelFetch2D(u->opaqueTex, x, y, 0));
 	float revealage = toglm(texelFetch2D(u->revealTex, x, y, 0)).r;
 	if (fabs(revealage - 1.0f) <= 0.00001f) {
-		*(vec4*)&builtins->gl_FragColor = vec4(vec3(opaque), 1.0f);
+		builtins->discard = GL_TRUE;
 		return;
 	}
 	vec4 accumulation = toglm(texelFetch2D(u->accumTex, x, y, 0));
 	vec3 average_color = vec3(accumulation) / max(accumulation.a, 0.00001f);
-	float a = 1.0f - revealage;
-	*(vec4*)&builtins->gl_FragColor = vec4(average_color * a + vec3(opaque) * (1.0f - a), 1.0f);
+	*(vec4*)&builtins->gl_FragColor = vec4(average_color, 1.0f - revealage);
+}
+
+void screen_vs(float* vs_output, pgl_vec4* vertex_attribs, Shader_Builtins* builtins, void* uniforms)
+{
+	(void)uniforms;
+	vec4 pos = ((vec4*)vertex_attribs)[0];
+	vec2 uv = vec2(((vec4*)vertex_attribs)[1]);
+	*(vec2*)&vs_output[0] = uv;
+	*(vec4*)&builtins->gl_Position = vec4(vec3(pos), 1.0f);
+}
+
+void screen_fs(float* fs_input, Shader_Builtins* builtins, void* uniforms)
+{
+	My_Uniforms* u = (My_Uniforms*)uniforms;
+	vec2 uv = *(vec2*)&fs_input[0];
+	*(vec4*)&builtins->gl_FragColor = vec4(vec3(toglm(texture2D(u->screenTex, uv.x, uv.y))), 1.0f);
 }
 
 mat4 calculate_model_matrix(const vec3& position, const vec3& rotation, const vec3& scale)
